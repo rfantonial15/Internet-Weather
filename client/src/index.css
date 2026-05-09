@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    --hud-line: rgba(180, 220, 255, 0.16);
+    --hud-glow: rgba(120, 200, 255, 0.6);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    background: #05070d;
+    color: #cfe6ff;
+    font-family: "Space Grotesk", Inter, system-ui, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  canvas {
+    outline: none;
+    touch-action: none;
+  }
+
+  ::selection {
+    background: rgba(255, 77, 210, 0.35);
+    color: #fff;
+  }
+}
+
+@layer components {
+  .hud-grid {
+    background-image:
+      linear-gradient(to right, var(--hud-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--hud-line) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.5), transparent 70%);
+  }
+
+  .glass {
+    background: linear-gradient(
+      180deg,
+      rgba(10, 18, 36, 0.55) 0%,
+      rgba(6, 10, 22, 0.35) 100%
+    );
+    backdrop-filter: blur(14px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .hud-label {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.32em;
+    font-size: 10px;
+    color: rgba(207, 230, 255, 0.7);
+  }
+
+  .scanline::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent 0,
+      transparent 2px,
+      rgba(255, 255, 255, 0.015) 2px,
+      rgba(255, 255, 255, 0.015) 3px
+    );
+    pointer-events: none;
+    mix-blend-mode: overlay;
+  }
+}
