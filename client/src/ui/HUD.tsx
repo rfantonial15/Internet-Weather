@@ -14,14 +14,17 @@ import { CoordReadout } from "./components/CoordReadout";
  *     it. The center stays uncluttered so the planet has room.
  *
  *   - One unit of motion at a time. The radar sweep is the only fast-moving
- *     element; everything else animates only on entry/exit. The eye stays
- *     on the planet, the chrome stays still.
+ *     element; everything else animates only on entry/exit.
  *
- *   - No backgrounds. Rules and corner marks delineate; never panels.
- *     Panels suggest a dashboard. We are not a dashboard.
+ *   - No full panels. Rules and corner marks delineate; never panels.
  *
  *   - Restraint over information. Every readout earns its place. If a value
  *     can be inferred from the visualization, it doesn't appear in the HUD.
+ *
+ *   - Contrast over decoration. Default opacity for primary text is high;
+ *     muted variants only for genuinely-secondary tags. The prior version
+ *     stacked a dozen `opacity-30` / `opacity-45` classes that made the HUD
+ *     unreadable against the bloom-bright planet.
  */
 export function HUD() {
   const fps = useUIStore((s) => s.fps);
@@ -30,32 +33,32 @@ export function HUD() {
 
   return (
     <motion.div
-      className="pointer-events-none absolute inset-0 select-none"
+      className="pointer-events-none absolute inset-0 z-10 select-none"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 1.2, delay: 2.6 }}
     >
-      {/* Faint frame rules — top + bottom only, edges fade into transparency */}
       <FrameRules />
 
       {/* Top-left: identity + observation mode */}
       <div className="absolute left-10 top-7 flex flex-col gap-1.5">
-        <div className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-signal-cyan shadow-[0_0_8px_rgba(92,243,255,0.9)]" />
-          <span className="hud-label">Internet Weather</span>
+        <div className="flex items-center gap-2.5">
+          {/* Solid hairline dot. No box-shadow — the chrome doesn't glow. */}
+          <span className="h-[5px] w-[5px] rounded-full bg-accent" />
+          <span className="hud-label hud-label--strong">Internet Weather</span>
         </div>
-        <span className="hud-label opacity-45">obs · planetary uplink</span>
-        <span className="hud-label opacity-30">spec · v.0.1.0</span>
+        <span className="hud-label hud-label--mute">obs · planetary uplink</span>
+        <span className="hud-label hud-label--faint">spec · v.0.1.0</span>
       </div>
 
       {/* Top-right: chrono + status */}
       <div className="absolute right-10 top-7 flex flex-col items-end gap-2">
         <Chrono />
         <div className="flex flex-col items-end gap-1">
-          <span className="hud-label opacity-65">
+          <span className="hud-label">
             {connected ? "uplink · stable" : "uplink · simulated"}
           </span>
-          <span className="hud-label opacity-30">
+          <span className="hud-label hud-label--faint">
             q.{quality} · {String(fps).padStart(2, "0")}fps
           </span>
         </div>
@@ -77,7 +80,7 @@ export function HUD() {
 
 function FrameRules() {
   const grad =
-    "linear-gradient(to right, transparent 0%, rgba(120,200,255,0.18) 30%, rgba(120,200,255,0.18) 70%, transparent 100%)";
+    "linear-gradient(to right, transparent 0%, rgba(140,200,255,0.22) 30%, rgba(140,200,255,0.22) 70%, transparent 100%)";
   return (
     <>
       <span aria-hidden className="absolute left-10 right-10 top-4 h-px" style={{ background: grad }} />

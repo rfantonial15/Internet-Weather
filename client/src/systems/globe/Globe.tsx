@@ -6,6 +6,8 @@ import frag from "@/shaders/earth/earth.frag.glsl";
 import { palette } from "@/config/colors";
 import { EARTH_RADIUS } from "@/config/constants";
 import { useWorldStore } from "@/state/useWorldStore";
+import { useUIStore } from "@/state/useUIStore";
+import { profiles } from "@/config/quality";
 
 /**
  * The cinematic planet. Geometry is a single high-density icosphere; all
@@ -14,6 +16,7 @@ import { useWorldStore } from "@/state/useWorldStore";
  */
 export function Globe() {
   const meshRef = useRef<Mesh>(null!);
+  const detail = profiles[useUIStore((s) => s.quality)].sphereDetail;
 
   const material = useMemo(() => {
     return new ShaderMaterial({
@@ -43,7 +46,7 @@ export function Globe() {
 
   return (
     <mesh ref={meshRef} material={material}>
-      <icosahedronGeometry args={[EARTH_RADIUS, 96]} />
+      <icosahedronGeometry args={[EARTH_RADIUS, detail]} />
     </mesh>
   );
 }

@@ -3,6 +3,7 @@ import { Vector3 } from "three";
 import type { GeoPoint } from "@iw/shared";
 import { geoToVec3 } from "@/utils/geo";
 import { CAMERA } from "@/config/constants";
+import type { CameraDirector, CinematicShot } from "@/core/camera/cameraDirector";
 
 export type CameraMode = "idle" | "focus" | "free";
 
@@ -37,3 +38,28 @@ export const useCameraStore = create<CameraState>((set) => ({
   release: () => set({ mode: "idle", focusUntil: 0, targetGeo: null }),
   setDistance: (d) => set({ distance: d }),
 }));
+
+/**
+ * Director handle. The CinematicCamera component registers its director
+ * instance here on mount; the capture pipeline calls these to start shots
+ * without React having to be in the loop.
+ */
+let activeDirector: CameraDirector | null = null;
+
+export function registerDirector(d: CameraDirector | null) {
+  activeDirector = d;
+}
+
+export function startCinematicShot(shot: CinematicShot): boolean {
+  if (!activeDirector) return false;
+  activeDirector.startShot(shot);
+  return true;
+}
+
+export function endCinematicShot() {
+  activeDirector?.endShot();
+}
+
+export function cinematicShotProgress(): number | null {
+  return activeDirector?.shotProgress() ?? null;
+}

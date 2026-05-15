@@ -9,6 +9,8 @@ import {
 } from "three";
 import { useWorldStore } from "@/state/useWorldStore";
 import { useEventStore } from "@/state/useEventStore";
+import { useUIStore } from "@/state/useUIStore";
+import { profiles } from "@/config/quality";
 import { palette } from "@/config/colors";
 import { ATMOSPHERE_RADIUS } from "@/config/constants";
 
@@ -22,6 +24,7 @@ import { ATMOSPHERE_RADIUS } from "@/config/constants";
 export function AuroraField() {
   const meshRef = useRef<Mesh>(null!);
   const wholesomeEnergy = useRef(0);
+  const detail = profiles[useUIStore((s) => s.quality)].sphereDetail;
 
   const material = useMemo(
     () =>
@@ -101,7 +104,7 @@ export function AuroraField() {
 
   return (
     <mesh ref={meshRef} material={material}>
-      <sphereGeometry args={[ATMOSPHERE_RADIUS * 1.04, 96, 96]} />
+      <sphereGeometry args={[ATMOSPHERE_RADIUS * 1.04, detail, detail]} />
     </mesh>
   );
 }

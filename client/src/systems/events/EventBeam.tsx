@@ -10,17 +10,21 @@ import {
   Vector3,
   Quaternion,
 } from "three";
-import type { WeatherEvent } from "@iw/shared";
 import { visualByKind } from "./eventTypes";
 import { geoToVec3 } from "@/utils/geo";
 import { EARTH_RADIUS, EVENTS } from "@/config/constants";
 import { useWorldStore } from "@/state/useWorldStore";
+import { useEventStore } from "@/state/useEventStore";
 
 /**
  * Vertical light beams projecting from the surface for high-energy event
  * kinds (rage, news, viral, controversy). Cylinders pointing radially out.
+ *
+ * Reads events lazily from the store inside useFrame — this component
+ * doesn't subscribe, so the high-frequency event push doesn't trigger
+ * React re-renders.
  */
-export function EventBeam({ events }: { events: WeatherEvent[] }) {
+export function EventBeam() {
   const meshRef = useRef<InstancedMesh>(null!);
   const dummy = useMemo(() => new Object3D(), []);
   const q = useMemo(() => new Quaternion(), []);
@@ -44,6 +48,7 @@ export function EventBeam({ events }: { events: WeatherEvent[] }) {
   useFrame(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
+    const events = useEventStore.getState().events;
     const now = useWorldStore.getState().elapsed * 1000 + performance.timeOrigin;
 
     let i = 0;

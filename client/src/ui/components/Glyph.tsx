@@ -18,10 +18,12 @@ const GLYPHS: Record<EventKind, string> = {
 };
 
 export function Glyph({ kind, color }: { kind: EventKind; color?: string }) {
+  // No textShadow: the chrome is hairline + flat. The glyph carries shape;
+  // colour alone is enough to identify the kind. Glow read as hacker neon.
   return (
     <span
       className="inline-block w-3 text-center font-mono text-[12px] leading-none"
-      style={color ? { color, textShadow: `0 0 6px ${color}` } : undefined}
+      style={color ? { color } : undefined}
     >
       {GLYPHS[kind]}
     </span>

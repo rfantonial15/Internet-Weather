@@ -17,8 +17,10 @@ export function EventTicker() {
 
   return (
     <HoloFrame className="relative px-5 py-3" edges>
-      <div className="hud-label mb-2 flex items-center gap-2">
-        <span className="h-1 w-1 animate-pulse rounded-full bg-signal-cyan" />
+      <div className="hud-label hud-label--mute mb-2 flex items-center gap-2">
+        {/* Static dot. No animate-pulse — the ticker animates per-row entry,
+            which is plenty of motion. A pulsing header is hacker-UI. */}
+        <span className="h-1 w-1 rounded-full bg-accent-dim" />
         live signals
       </div>
       <ul className="space-y-[3px]">
@@ -39,13 +41,13 @@ export function EventTicker() {
               >
                 {e.kind}
               </span>
-              <span className="w-40 truncate text-white/85">{e.label ?? "—"}</span>
-              <span className="ml-auto w-[150px] text-right text-white/40">
+              <span className="w-40 truncate text-white/95">{e.label ?? "—"}</span>
+              <span className="ml-auto w-[150px] text-right text-white/65">
                 {e.at
                   ? `${signed(e.at.lat, 1)}°, ${signed(e.at.lon, 1)}°`
                   : "global"}
               </span>
-              <span className="w-9 text-right text-white/55">
+              <span className="w-9 text-right text-white/80">
                 {String(Math.round(e.intensity * 100)).padStart(2, "0")}
               </span>
             </motion.li>

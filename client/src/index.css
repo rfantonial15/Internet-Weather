@@ -5,8 +5,25 @@
 @layer base {
   :root {
     color-scheme: dark;
-    --hud-line: rgba(180, 220, 255, 0.16);
-    --hud-glow: rgba(120, 200, 255, 0.6);
+
+    /* Hairline rules. The chrome is built from paper-thin lines, not panels.
+       Two stops only: standard rule, slightly stronger emphasis rule. */
+    --rule:        rgba(232, 240, 252, 0.10);
+    --rule-strong: rgba(232, 240, 252, 0.18);
+
+    /* Typography scale — five steps, paper white scaling down by opacity.
+       No coloured-text variants here. The chrome stays monochrome; coloured
+       text is reserved for places that genuinely point at planet data. */
+    --text-strong: rgba(232, 240, 252, 0.96);
+    --text-body:   rgba(214, 226, 244, 0.86);
+    --text-mute:   rgba(196, 212, 234, 0.62);
+    --text-faint:  rgba(180, 200, 224, 0.40);
+    --text-ghost:  rgba(170, 190, 218, 0.22);
+
+    --accent:      #9ec8ff;
+    --accent-dim:  rgba(158, 200, 255, 0.55);
+
+    --surface:     rgba(8, 12, 22, 0.78);
   }
 
   html,
@@ -15,11 +32,14 @@
     height: 100%;
     width: 100%;
     margin: 0;
-    background: #05070d;
-    color: #cfe6ff;
+    background: #04060c;
+    color: var(--text-body);
     font-family: "Space Grotesk", Inter, system-ui, sans-serif;
     overflow: hidden;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "tnum", "ss01";
   }
 
   canvas {
@@ -27,51 +47,48 @@
     touch-action: none;
   }
 
+  /* Selection: muted paper, never the magenta. */
   ::selection {
-    background: rgba(255, 77, 210, 0.35);
+    background: rgba(158, 200, 255, 0.28);
     color: #fff;
   }
 }
 
 @layer components {
+  /* Faint background grid behind the scene. Masked tightly so the centre
+     stays clean — the grid is a frame, not a backdrop. */
   .hud-grid {
     background-image:
-      linear-gradient(to right, var(--hud-line) 1px, transparent 1px),
-      linear-gradient(to bottom, var(--hud-line) 1px, transparent 1px);
-    background-size: 64px 64px;
-    mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.5), transparent 70%);
+      linear-gradient(to right, var(--rule) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--rule) 1px, transparent 1px);
+    background-size: 72px 72px;
+    mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.28), transparent 60%);
   }
 
-  .glass {
-    background: linear-gradient(
-      180deg,
-      rgba(10, 18, 36, 0.55) 0%,
-      rgba(6, 10, 22, 0.35) 100%
-    );
-    backdrop-filter: blur(14px) saturate(140%);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-  }
-
+  /* HUD label — the small monospace tag/state text scattered in the corners.
+     Restraint over decoration: 10px, paper-mute by default, narrow tracking.
+     Bumped down from 0.32em → 0.24em — at 10px, wider tracking just makes
+     the text harder to parse. */
   .hud-label {
     font-family: "JetBrains Mono", ui-monospace, monospace;
     text-transform: uppercase;
-    letter-spacing: 0.32em;
+    letter-spacing: 0.24em;
     font-size: 10px;
-    color: rgba(207, 230, 255, 0.7);
+    color: var(--text-mute);
+    line-height: 1.6;
+    font-weight: 400;
   }
 
-  .scanline::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent 0,
-      transparent 2px,
-      rgba(255, 255, 255, 0.015) 2px,
-      rgba(255, 255, 255, 0.015) 3px
-    );
-    pointer-events: none;
-    mix-blend-mode: overlay;
+  .hud-label--strong { color: var(--text-strong); }
+  .hud-label--mute   { color: var(--text-mute); }
+  .hud-label--faint  { color: var(--text-faint); }
+  .hud-label--ghost  { color: var(--text-ghost); }
+
+  /* Used by the gallery drawer / modal-ish surfaces. Solid colour, no blur:
+     blur is expensive and the planet is dim enough behind the panel that we
+     don't need it for legibility. */
+  .surface-panel {
+    background: var(--surface);
+    border: 1px solid var(--rule-strong);
   }
 }

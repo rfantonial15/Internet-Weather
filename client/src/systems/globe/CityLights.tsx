@@ -7,6 +7,8 @@ import { palette } from "@/config/colors";
 import { EARTH_RADIUS } from "@/config/constants";
 import { useWorldStore } from "@/state/useWorldStore";
 import { useEventStore } from "@/state/useEventStore";
+import { useUIStore } from "@/state/useUIStore";
+import { profiles } from "@/config/quality";
 
 /**
  * Glowing constellations on the night side. Subscribes to "build" events
@@ -16,6 +18,7 @@ import { useEventStore } from "@/state/useEventStore";
 export function CityLights() {
   const buildPulse = useRef(0);
   const lastSeen = useRef<string | null>(null);
+  const detail = profiles[useUIStore((s) => s.quality)].sphereDetail;
 
   const material = useMemo(
     () =>
@@ -56,7 +59,7 @@ export function CityLights() {
 
   return (
     <mesh material={material}>
-      <sphereGeometry args={[EARTH_RADIUS * 1.001, 96, 96]} />
+      <sphereGeometry args={[EARTH_RADIUS * 1.001, detail, detail]} />
     </mesh>
   );
 }

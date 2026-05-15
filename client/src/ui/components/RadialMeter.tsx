@@ -1,14 +1,11 @@
 /**
- * Radial sweep meter — a 270° dial built from individual stroked tick lines.
+ * Radial sweep meter — a 270° dial drawn from individual hairline tick marks.
  *
- * Why ticks instead of a stroked arc? Discretization reads as instrumentation
- * (think aircraft attitude indicator) whereas a continuous arc reads as a
- * progress bar. We're aiming for the former.
- *
- * The dial sweeps from upper-left (-135°) clockwise through the bottom and
- * back up to upper-right (+135°), leaving a gap at the top that doubles as
- * a label slot. Lit ticks shift hue from cool cyan (low) to hot magenta
- * (high) when `hot` is true.
+ * Discretised ticks read as instrumentation; a stroked arc reads as a progress
+ * bar. We want the former. Lit ticks are paper white at the low end, gradient
+ * up to a single warm accent at the high end (no magenta — magenta in chrome
+ * read as cyberpunk). The dial sweeps -135° → +135°, leaving a gap at the top
+ * that doubles as a label slot.
  */
 interface Props {
   /** 0..1 */
@@ -16,14 +13,20 @@ interface Props {
   label: string;
   /** Center numeric readout (defaults to value*100). */
   display?: string;
-  /** Use the cyan→magenta gradient. Off = cyan-only. */
+  /** Use the warm-shift gradient toward the high end. Off = single accent. */
   hot?: boolean;
   size?: number;
 }
 
-const TICK_COUNT = 32;
+const TICK_COUNT = 28;
 const SWEEP_DEG = 270;
 const START_DEG = -135;
+
+// Cool → warm gradient that stays inside a film-grade tonal range.
+//   low:  paper white at low alpha
+//   high: muted ember (warning) at higher alpha
+const COOL = { r: 232, g: 240, b: 252 };
+const WARM = { r: 255, g: 178, b: 120 };
 
 export function RadialMeter({ value, label, display, hot = false, size = 132 }: Props) {
   const cx = size / 2;
@@ -45,12 +48,11 @@ export function RadialMeter({ value, label, display, hot = false, size = 132 }: 
           const y2 = cy + Math.sin(rad) * rOuter;
 
           const on = i < lit;
-          const intensity = i / TICK_COUNT;
           const stroke = on
             ? hot
-              ? `rgba(${interp(92, 255, intensity)}, ${interp(243, 77, intensity)}, ${interp(255, 210, intensity)}, ${0.4 + intensity * 0.55})`
-              : `rgba(92, 243, 255, ${0.35 + intensity * 0.5})`
-            : "rgba(150, 200, 255, 0.10)";
+              ? `rgba(${interp(COOL.r, WARM.r, t)}, ${interp(COOL.g, WARM.g, t)}, ${interp(COOL.b, WARM.b, t)}, ${0.55 + t * 0.35})`
+              : `rgba(232, 240, 252, ${0.45 + t * 0.4})`
+            : "rgba(232, 240, 252, 0.08)";
 
           return (
             <line
@@ -60,33 +62,29 @@ export function RadialMeter({ value, label, display, hot = false, size = 132 }: 
               x2={x2}
               y2={y2}
               stroke={stroke}
-              strokeWidth={1.5}
-              strokeLinecap="round"
+              strokeWidth={1.25}
+              strokeLinecap="butt"
             />
           );
         })}
 
-        {/* Inner faint ring */}
+        {/* Inner faint ring — a single hairline guide. */}
         <circle
           cx={cx}
           cy={cy}
           r={rInner - 4}
           fill="none"
-          stroke="rgba(150, 200, 255, 0.12)"
+          stroke="rgba(232, 240, 252, 0.10)"
           strokeWidth="1"
         />
       </svg>
 
+      {/* Centre readout — tabular nums, paper white, no text-shadow glow. */}
       <div className="absolute inset-0 flex flex-col items-center justify-center pt-1">
-        <span
-          className="font-mono text-[26px] font-light leading-none tracking-tight text-white/90"
-          style={{
-            textShadow: hot && value > 0.55 ? "0 0 12px rgba(255,77,210,0.45)" : undefined,
-          }}
-        >
+        <span className="font-mono text-[24px] font-light leading-none tracking-tight tabular-nums text-paper">
           {display ?? Math.round(value * 100).toString().padStart(2, "0")}
         </span>
-        <span className="hud-label mt-2 opacity-70">{label}</span>
+        <span className="hud-label hud-label--mute mt-2">{label}</span>
       </div>
     </div>
   );

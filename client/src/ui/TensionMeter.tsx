@@ -31,9 +31,9 @@ export function TensionMeter() {
     <div className="pointer-events-none absolute right-10 top-1/2 -translate-y-1/2">
       <div className="flex flex-col items-center gap-3">
         <RadialMeter value={tension} label="tension" hot />
-        <div className="flex flex-col items-center gap-0.5 font-mono text-[10px] tracking-[0.32em]">
-          <span className="text-white/35">var</span>
-          <span className="text-signal-cyan/80">{tension.toFixed(2)}</span>
+        <div className="flex flex-col items-center gap-0.5 font-mono text-[10px] tracking-[0.28em] tabular-nums">
+          <span className="text-paper-faint uppercase">var</span>
+          <span className="text-paper-mute">{tension.toFixed(2)}</span>
         </div>
       </div>
     </div>

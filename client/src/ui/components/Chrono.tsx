@@ -16,12 +16,12 @@ export function Chrono() {
   const time = iso.slice(11, 19);
 
   return (
-    <div className="flex flex-col items-end gap-0.5 font-mono">
-      <div className="text-[12px] tracking-[0.36em] text-signal-cyan">
+    <div className="flex flex-col items-end gap-0.5 font-mono tabular-nums">
+      <div className="text-[14px] tracking-[0.32em] text-paper">
         {time}
-        <span className="ml-1 text-[9px] opacity-50">UTC</span>
+        <span className="ml-1.5 text-[9px] tracking-[0.32em] text-paper-faint">UTC</span>
       </div>
-      <div className="text-[9px] tracking-[0.36em] text-white/40">{date}</div>
+      <div className="text-[9px] tracking-[0.32em] text-paper-mute">{date}</div>
     </div>
   );
 }

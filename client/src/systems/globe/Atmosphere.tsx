@@ -6,6 +6,8 @@ import frag from "@/shaders/atmosphere/atmosphere.frag.glsl";
 import { palette } from "@/config/colors";
 import { ATMOSPHERE_RADIUS } from "@/config/constants";
 import { useWorldStore } from "@/state/useWorldStore";
+import { useUIStore } from "@/state/useUIStore";
+import { profiles } from "@/config/quality";
 
 /**
  * Cinematic atmospheric scattering. Two-shell volumetric feel built from a
@@ -14,6 +16,7 @@ import { useWorldStore } from "@/state/useWorldStore";
  * distances we orbit at.
  */
 export function Atmosphere() {
+  const detail = profiles[useUIStore((s) => s.quality)].sphereDetail;
   const material = useMemo(
     () =>
       new ShaderMaterial({
@@ -45,7 +48,7 @@ export function Atmosphere() {
 
   return (
     <mesh material={material} renderOrder={2}>
-      <sphereGeometry args={[ATMOSPHERE_RADIUS, 96, 96]} />
+      <sphereGeometry args={[ATMOSPHERE_RADIUS, detail, detail]} />
     </mesh>
   );
 }

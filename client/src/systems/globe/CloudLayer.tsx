@@ -6,6 +6,8 @@ import frag from "@/shaders/clouds/clouds.frag.glsl";
 import { EARTH_RADIUS } from "@/config/constants";
 import { palette } from "@/config/colors";
 import { useWorldStore } from "@/state/useWorldStore";
+import { useUIStore } from "@/state/useUIStore";
+import { profiles } from "@/config/quality";
 
 /**
  * Procedural cloud shell sitting just above the surface. One mesh, one
@@ -15,6 +17,7 @@ import { useWorldStore } from "@/state/useWorldStore";
  */
 export function CloudLayer() {
   const meshRef = useRef<Mesh>(null!);
+  const detail = profiles[useUIStore((s) => s.quality)].sphereDetail;
 
   const material = useMemo(
     () =>
@@ -46,7 +49,7 @@ export function CloudLayer() {
 
   return (
     <mesh ref={meshRef} material={material} renderOrder={1}>
-      <sphereGeometry args={[EARTH_RADIUS * 1.012, 96, 96]} />
+      <sphereGeometry args={[EARTH_RADIUS * 1.012, detail, detail]} />
     </mesh>
   );
 }

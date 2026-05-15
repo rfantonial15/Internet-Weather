@@ -1,25 +1,25 @@
 import { ReactNode } from "react";
 
 /**
- * Holographic frame primitive.
+ * Frame primitive — four corner marks plus optional hairline edges.
  *
- * Wraps any block in a 4-corner mark + thin rule treatment. Used in place of
- * background panels — we never want a panel filling space; the rules just
- * delineate. Color is configurable so we can subtly tint frames around
- * tone-sensitive content.
+ * The previous implementation included a glowing dot at each corner. That
+ * read as cyberpunk neon. The film-grade version is flat: hairline marks,
+ * no shadow, no fill dot. The frame should disappear and let the content
+ * speak.
  */
 interface Props {
   children: ReactNode;
   className?: string;
   color?: string;
-  /** Show edge rules between the corner marks. Off by default — corners alone read cleaner. */
+  /** Render edge rules between the corner marks. Off by default. */
   edges?: boolean;
 }
 
 export function HoloFrame({
   children,
   className = "",
-  color = "rgba(120, 200, 255, 0.45)",
+  color = "rgba(232, 240, 252, 0.32)",
   edges = false,
 }: Props) {
   return (
@@ -50,21 +50,20 @@ function Corner({ pos, color }: { pos: Pos; color: string }) {
     br: "right-0 bottom-0",
   };
   return (
-    <span aria-hidden className={`pointer-events-none absolute h-2.5 w-2.5 ${placement[pos]}`}
-      style={{ transform: transform[pos] }}>
+    <span
+      aria-hidden
+      className={`pointer-events-none absolute h-2.5 w-2.5 ${placement[pos]}`}
+      style={{ transform: transform[pos] }}
+    >
       <span className="absolute left-0 top-0 h-px w-2.5" style={{ background: color }} />
       <span className="absolute left-0 top-0 h-2.5 w-px" style={{ background: color }} />
-      <span
-        className="absolute left-[-1.5px] top-[-1.5px] h-1 w-1 rounded-full"
-        style={{ background: color, boxShadow: `0 0 5px ${color}` }}
-      />
     </span>
   );
 }
 
 function Edges({ color }: { color: string }) {
   const grad = (dir: string) =>
-    `linear-gradient(${dir}, transparent 0%, ${color} 25%, ${color} 75%, transparent 100%)`;
+    `linear-gradient(${dir}, transparent 0%, ${color} 28%, ${color} 72%, transparent 100%)`;
   return (
     <>
       <span aria-hidden className="pointer-events-none absolute left-3 right-3 top-0 h-px" style={{ background: grad("to right") }} />

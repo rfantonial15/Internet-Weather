@@ -8,6 +8,8 @@ import { CityLights } from "@/systems/globe/CityLights";
 import { CloudLayer } from "@/systems/globe/CloudLayer";
 import { NeuralCurrents } from "@/systems/globe/NeuralCurrents";
 import { WeatherSimulation } from "@/systems/weather/WeatherSimulation";
+import { useUIStore } from "@/state/useUIStore";
+import { profiles } from "@/config/quality";
 
 /**
  * The single live scene. Composed of independent systems, each managing
@@ -16,23 +18,21 @@ import { WeatherSimulation } from "@/systems/weather/WeatherSimulation";
  * Layer order (inner → outer):
  *   Globe surface         R = 1.000
  *   CityLights            R = 1.001  (additive over surface)
- *   HeatField             R = 1.003  (additive discs — viral/trend)
- *   NeuralCurrents        R = 1.005  (additive — nervous system)
+ *   NeuralCurrents        R = 1.005  (additive — gated by quality)
  *   CloudLayer            R = 1.012  (alpha — diffuses everything below it)
  *   StormCells / Lightning / Swarm   R ≈ 1.012-1.015 (additive particles & lines)
  *   EventAurora pillars   R = 1.0..1.4 (radial cylinders)
  *   Atmosphere            R = 1.060  (back-side scattering halo)
  *   AuroraField (global)  R = 1.103  (back-side polar curtains)
  *
- * Two simulation tiers coexist here:
- *   - Globals (StormSystem, AuroraField, NeuralCurrents) → ambient mood
- *   - Locals  (WeatherSimulation modules)               → per-event drama
- *
- * Adding a new visual phenomenon = either a SimModule + renderer pair (for
- * event-driven phenomena) or a single shader-shell component here (for
- * ambient phenomena). Never reach across systems.
+ * Quality gating: NeuralCurrents is the heaviest ambient layer (full-shell
+ * fragment shader writing flowing filaments). On the lowest tier we drop it
+ * entirely. The atmosphere + city lights still sell the planet's life
+ * without it.
  */
 export function WorldScene() {
+  const profile = profiles[useUIStore((s) => s.quality)];
+
   return (
     <group>
       {/* Lighting — kept minimal. Atmosphere & emissive layers do most of the work. */}
@@ -45,7 +45,7 @@ export function WorldScene() {
       {/* Inner planet stack */}
       <Globe />
       <CityLights />
-      <NeuralCurrents />
+      {profile.enableNeuralCurrents && <NeuralCurrents />}
       <CloudLayer />
       <Atmosphere />
 

@@ -21,16 +21,16 @@ export function CoordReadout() {
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             className="flex flex-col gap-1 font-mono text-[10px] tracking-[0.32em]"
           >
-            <span className="hud-label">target</span>
-            <span className="text-signal-cyan">
+            <span className="hud-label hud-label--mute">target</span>
+            <span className="text-paper tabular-nums">
               {geo.lat >= 0 ? "+" : ""}
               {geo.lat.toFixed(2)}°
             </span>
-            <span className="text-signal-cyan/80">
+            <span className="text-paper-mute tabular-nums">
               {geo.lon >= 0 ? "+" : ""}
               {geo.lon.toFixed(2)}°
             </span>
-            <span className="hud-label opacity-50">lock · active</span>
+            <span className="hud-label hud-label--faint">lock · active</span>
           </motion.div>
         )}
       </AnimatePresence>

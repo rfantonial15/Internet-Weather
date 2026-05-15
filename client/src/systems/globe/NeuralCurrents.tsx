@@ -7,6 +7,8 @@ import { palette } from "@/config/colors";
 import { EARTH_RADIUS } from "@/config/constants";
 import { useWorldStore } from "@/state/useWorldStore";
 import { useEventStore } from "@/state/useEventStore";
+import { useUIStore } from "@/state/useUIStore";
+import { profiles } from "@/config/quality";
 
 /**
  * The "nervous system of humanity" layer. A single shell sphere whose
@@ -23,6 +25,7 @@ import { useEventStore } from "@/state/useEventStore";
 export function NeuralCurrents() {
   const energy = useRef(0);
   const lastSeen = useRef<string | null>(null);
+  const detail = profiles[useUIStore((s) => s.quality)].sphereDetail;
 
   const material = useMemo(
     () =>
@@ -68,7 +71,7 @@ export function NeuralCurrents() {
 
   return (
     <mesh material={material} renderOrder={3}>
-      <sphereGeometry args={[EARTH_RADIUS * 1.005, 128, 128]} />
+      <sphereGeometry args={[EARTH_RADIUS * 1.005, detail, detail]} />
     </mesh>
   );
 }

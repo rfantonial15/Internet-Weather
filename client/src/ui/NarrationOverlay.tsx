@@ -4,35 +4,26 @@ import { useNarrationStore } from "@/state/useNarrationStore";
 import type { NarrationTone } from "@iw/shared";
 
 /**
- * Cinematic narration overlay.
+ * Narration caption.
  *
- * Sits in the upper-third of the frame — a documentary-style voice-over
- * caption. Each narration:
- *   - fades in over 800ms with a subtle vertical drift
- *   - holds for 4s + 60ms per character (so longer sentences linger)
+ * Sits in the upper third of the frame as a documentary-style voice-over
+ * line. Each narration:
+ *   - fades in over 800ms
+ *   - holds for 4s + 60ms per character (longer sentences linger)
  *   - fades out over 1.0s
- *   - hands off to the next without a hard cut
  *
- * Tone drives the accent color of the rules above & below the text. The
- * tone-mapping is intentionally narrow — we don't want six radically
- * different overlay looks; just six subtle palette nudges.
+ * Tone influences a quiet right-hand tag, not the colour of the text. The
+ * prior implementation tinted rules and added box-shadow glows per tone — it
+ * read as a tone-coded UI rather than narration. The film-grade version
+ * keeps the body in paper white and lets the words do the work.
  */
-const TONE_COLORS: Record<NarrationTone, string> = {
-  contemplative: "rgba(150, 200, 255, 0.85)",
-  observational: "rgba(207, 230, 255, 0.85)",
-  concerned:     "rgba(255, 175, 120, 0.85)",
-  electric:      "rgba(92, 243, 255, 0.95)",
-  awed:          "rgba(125, 249, 198, 0.85)",
-  grave:         "rgba(255, 100, 150, 0.90)",
-};
-
 const TONE_LABEL: Record<NarrationTone, string> = {
-  contemplative: "obs · low signal",
-  observational: "obs · nominal",
-  concerned: "obs · elevated",
-  electric: "obs · spike",
-  awed: "obs · anomaly",
-  grave: "obs · critical",
+  contemplative: "low signal",
+  observational: "nominal",
+  concerned: "elevated",
+  electric: "spike",
+  awed: "anomaly",
+  grave: "critical",
 };
 
 export function NarrationOverlay() {
@@ -40,49 +31,43 @@ export function NarrationOverlay() {
   const clear = useNarrationStore((s) => s.clearCurrent);
   const [renderedId, setRenderedId] = useState<string | null>(null);
 
-  // Hold-time scales with text length so the user can finish reading.
   useEffect(() => {
     if (!current || current.id === renderedId) return;
     setRenderedId(current.id);
     const hold = 4000 + current.text.length * 55;
     const timeout = window.setTimeout(() => {
-      // Only clear if it's still the same narration — otherwise a newer one
-      // already replaced it.
       if (useNarrationStore.getState().current?.id === current.id) clear();
     }, hold);
     return () => window.clearTimeout(timeout);
   }, [current, renderedId, clear]);
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-[14%] flex justify-center">
+    <div className="pointer-events-none absolute inset-x-0 top-[14%] z-20 flex justify-center">
       <AnimatePresence mode="wait">
         {current && (
           <motion.div
             key={current.id}
-            initial={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 4 }}
             transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
             className="flex w-[min(720px,90vw)] flex-col items-center text-center"
           >
-            <Rule color={TONE_COLORS[current.tone]} />
-            <div className="px-4 py-3 font-display text-[15px] font-light leading-relaxed tracking-wide text-[rgba(230,242,255,0.95)] sm:text-base md:text-lg">
-              <NarrationText text={current.text} />
-            </div>
-            <Rule color={TONE_COLORS[current.tone]} reverse />
+            <Rule />
+            <p className="px-6 py-4 font-display text-[15px] font-light leading-relaxed tracking-wide text-paper sm:text-base md:text-[17px]">
+              {current.text}
+            </p>
+            <Rule reverse />
 
-            <div className="mt-2 flex items-center gap-3 text-[10px]">
-              <Dot color={TONE_COLORS[current.tone]} />
-              <span
-                className="font-mono uppercase tracking-[0.32em]"
-                style={{ color: TONE_COLORS[current.tone] }}
-              >
-                {TONE_LABEL[current.tone]}
-              </span>
+            <div className="mt-3 flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.28em] text-paper-faint">
+              <span>obs</span>
+              <span aria-hidden>·</span>
+              <span>{TONE_LABEL[current.tone]}</span>
               {current.region && (
-                <span className="font-mono uppercase tracking-[0.32em] text-white/40">
-                  · {current.region}
-                </span>
+                <>
+                  <span aria-hidden>·</span>
+                  <span>{current.region}</span>
+                </>
               )}
             </div>
           </motion.div>
@@ -92,67 +77,17 @@ export function NarrationOverlay() {
   );
 }
 
-function Rule({ color, reverse = false }: { color: string; reverse?: boolean }) {
+function Rule({ reverse = false }: { reverse?: boolean }) {
+  // Hairline, paper white, no glow. Letter the rule scale in/out from the
+  // appropriate side so the eye gets a quiet "now reading / done reading" cue.
   return (
     <motion.div
-      className="h-px w-full"
+      className="h-px w-full bg-paper-ghost"
       initial={{ scaleX: 0 }}
       animate={{ scaleX: 1 }}
       exit={{ scaleX: 0 }}
       transition={{ duration: 0.7, delay: reverse ? 0.05 : 0, ease: [0.22, 1, 0.36, 1] }}
-      style={{
-        background: `linear-gradient(${
-          reverse ? "to left" : "to right"
-        }, transparent, ${color}, transparent)`,
-        boxShadow: `0 0 12px ${color}`,
-        transformOrigin: reverse ? "right" : "left",
-      }}
+      style={{ transformOrigin: reverse ? "right" : "left" }}
     />
-  );
-}
-
-function Dot({ color }: { color: string }) {
-  return (
-    <span
-      className="h-1.5 w-1.5 rounded-full"
-      style={{ background: color, boxShadow: `0 0 8px ${color}` }}
-    />
-  );
-}
-
-/**
- * Letter-by-letter typewriter reveal. ~22ms per char with a small jitter so
- * the cadence doesn't feel mechanical. We intentionally don't animate
- * spaces individually — the eye reads them as part of the previous word.
- */
-function NarrationText({ text }: { text: string }) {
-  const [shown, setShown] = useState("");
-
-  useEffect(() => {
-    setShown("");
-    let i = 0;
-    let cancelled = false;
-    const step = () => {
-      if (cancelled) return;
-      i = Math.min(text.length, i + 1);
-      setShown(text.slice(0, i));
-      if (i < text.length) window.setTimeout(step, 22 + Math.random() * 8);
-    };
-    step();
-    return () => {
-      cancelled = true;
-    };
-  }, [text]);
-
-  return (
-    <span>
-      {shown}
-      <span
-        className="inline-block w-[0.12em] -translate-y-[0.1em] animate-pulse"
-        style={{ color: "rgba(255,255,255,0.6)" }}
-      >
-        ▍
-      </span>
-    </span>
   );
 }

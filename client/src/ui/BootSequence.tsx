@@ -1,9 +1,13 @@
 import { motion } from "framer-motion";
 
 /**
- * Cold-start veil: cinematic boot screen that fades the planet up. Three
- * stacked layers (block, lines, tagline) animate in/out on a coordinated
- * timeline so the reveal feels orchestrated, not sequential.
+ * Cold-start veil. Monochrome paper-on-ink, single hairline rule.
+ *
+ * The prior version split the wordmark across cyan + magenta — that's the
+ * 2010s hacker-neon cliché. The film-grade version stays on a single weight
+ * of paper: title in restrained sans, single accent rule, indeterminate
+ * progress as a near-invisible scan. Reads as instrument cold-start, not
+ * gaming launcher.
  */
 export function BootSequence() {
   return (
@@ -13,44 +17,42 @@ export function BootSequence() {
       animate={{ opacity: 0 }}
       transition={{ duration: 1.4, delay: 2.0, ease: "easeInOut" }}
     >
-      <div className="relative flex flex-col items-center gap-6">
+      <div className="relative flex flex-col items-center gap-7">
         <motion.div
-          className="h-px w-32 bg-signal-cyan"
-          initial={{ scaleX: 0 }}
-          animate={{ scaleX: 1 }}
-          transition={{ duration: 1.2, ease: "easeOut" }}
+          className="h-px w-24 bg-accent-dim"
+          initial={{ scaleX: 0, opacity: 0 }}
+          animate={{ scaleX: 1, opacity: 1 }}
+          transition={{ duration: 1.0, ease: "easeOut" }}
         />
 
         <motion.div
           className="text-center"
-          initial={{ opacity: 0, y: 8 }}
+          initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
+          transition={{ duration: 0.9, delay: 0.25 }}
         >
-          <div className="font-display text-3xl font-light tracking-[0.4em] text-signal-cyan">
-            INTERNET
-          </div>
-          <div className="font-display text-3xl font-light tracking-[0.4em] text-signal-magenta">
-            WEATHER
+          <div className="font-display text-[30px] font-extralight tracking-[0.46em] text-paper">
+            INTERNET&nbsp;WEATHER
           </div>
         </motion.div>
 
         <motion.div
-          className="hud-label opacity-70"
+          className="font-mono text-[10px] uppercase tracking-[0.32em] text-paper-mute"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.8 }}
+          transition={{ duration: 0.6, delay: 0.85 }}
         >
-          calibrating planetary uplink…
+          calibrating planetary uplink
         </motion.div>
 
-        {/* Indeterminate progress bar */}
-        <div className="relative h-px w-64 overflow-hidden bg-signal-cyan/15">
+        {/* Indeterminate scan. Very thin, very low contrast — reads as a
+            measurement passing across, not as a progress bar. */}
+        <div className="relative h-px w-56 overflow-hidden bg-paper-ghost">
           <motion.div
-            className="absolute inset-y-0 w-1/3 bg-signal-cyan"
-            initial={{ x: "-100%" }}
-            animate={{ x: "300%" }}
-            transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute inset-y-0 w-1/3 bg-accent-dim"
+            initial={{ x: "-110%" }}
+            animate={{ x: "320%" }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
           />
         </div>
       </div>

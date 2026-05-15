@@ -11,19 +11,18 @@ import {
   Quaternion,
   DoubleSide,
 } from "three";
-import type { WeatherEvent } from "@iw/shared";
 import { visualByKind } from "./eventTypes";
 import { geoToVec3 } from "@/utils/geo";
 import { EARTH_RADIUS, EVENTS } from "@/config/constants";
 import { useWorldStore } from "@/state/useWorldStore";
+import { useEventStore } from "@/state/useEventStore";
 import { easeOutCubic } from "@/utils/easing";
 
 /**
- * Expanding ring shockwaves laid flat against the surface. We build them as
- * thin disc instances oriented along the surface normal; the alpha is faked
- * by scaling + the additive material — cheap and reads great with bloom.
+ * Expanding ring shockwaves laid flat against the surface. Reads events
+ * lazily from the store inside useFrame; doesn't subscribe to React.
  */
-export function EventRipple({ events }: { events: WeatherEvent[] }) {
+export function EventRipple() {
   const meshRef = useRef<InstancedMesh>(null!);
   const dummy = useMemo(() => new Object3D(), []);
   const q = useMemo(() => new Quaternion(), []);
@@ -58,6 +57,7 @@ export function EventRipple({ events }: { events: WeatherEvent[] }) {
   useFrame(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
+    const events = useEventStore.getState().events;
     const now = useWorldStore.getState().elapsed * 1000 + performance.timeOrigin;
 
     let i = 0;

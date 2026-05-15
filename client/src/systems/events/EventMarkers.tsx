@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import {
   InstancedMesh,
@@ -9,7 +9,6 @@ import {
   AdditiveBlending,
 } from "three";
 import { useEventStore } from "@/state/useEventStore";
-import { useCameraStore } from "@/state/useCameraStore";
 import { useWorldStore } from "@/state/useWorldStore";
 import { visualByKind } from "./eventTypes";
 import { geoToVec3 } from "@/utils/geo";
@@ -24,27 +23,22 @@ import { EventRipple } from "./EventRipple";
  *   - an expanding shockwave ripple
  *
  * Instancing keeps the cost flat across the EVENTS.poolSize ring buffer.
+ *
+ * No React subscription to the events list — the renderer reads via
+ * getState() inside useFrame, so the high-frequency event push doesn't
+ * trigger a component re-render every time. The cinematic capture system
+ * owns dramatic camera moves now; the markers stay still and let the user
+ * decide where to look.
  */
 export function EventMarkers() {
   const meshRef = useRef<InstancedMesh>(null!);
   const dummy = useMemo(() => new Object3D(), []);
   const tmpColor = useMemo(() => new Color(), []);
 
-  const events = useEventStore((s) => s.events);
-  const focusOn = useCameraStore((s) => s.focusOn);
-
-  // Auto-focus the camera on the most recent high-intensity event.
-  useEffect(() => {
-    if (!events.length) return;
-    const last = events[events.length - 1];
-    if (last.at && last.intensity > 0.7) {
-      focusOn(last.at, { distance: 2.2 });
-    }
-  }, [events, focusOn]);
-
   useFrame(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
+    const events = useEventStore.getState().events;
     const now = useWorldStore.getState().elapsed * 1000 + performance.timeOrigin;
 
     let i = 0;
@@ -95,8 +89,8 @@ export function EventMarkers() {
         args={[geom, mat, EVENTS.poolSize]}
         frustumCulled={false}
       />
-      <EventBeam events={events} />
-      <EventRipple events={events} />
+      <EventBeam />
+      <EventRipple />
     </group>
   );
 }
