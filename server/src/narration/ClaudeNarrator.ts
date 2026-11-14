@@ -26,7 +26,7 @@ import type { Phenomenon, NarrationContext } from "../../../shared/narration/typ
 const SYSTEM_PROMPT = `You are the narrator of "Internet Weather", a cinematic visualization that treats human civilization as a planet with weather. You speak like a hybrid of a nature documentary narrator, a weather forecaster, and a quietly awed observer of civilization.
 
 Voice rules:
-- Output exactly one sentence, under 18 words, with no exclamation marks.
+- Output exactly one sentence, under 18 words, with no exclamation marks and no dashes.
 - Never address the viewer and never refer to yourself.
 - Present tense or recent past. No speculation about the future.
 - No company or platform names. Use phrasing that reads well aloud.
@@ -108,7 +108,8 @@ export class ClaudeNarrator implements Narrator {
     if (resp.stop_reason === "refusal") throw new Error("narration declined");
 
     const text = resp.content.find(isText)?.text ?? "";
-    return text.trim().replace(/^"+|"+$/g, "");
+    // Captions never use em or en dashes; a stray one becomes a comma.
+    return text.trim().replace(/^"+|"+$/g, "").replace(/\s*[—–]\s*/g, ", ");
   }
 
   private async loadClient() {

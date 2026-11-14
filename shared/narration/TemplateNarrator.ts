@@ -17,18 +17,18 @@ export class TemplateNarrator implements Narrator {
   readonly name = "template";
 
   async narrate(p: Phenomenon, tone: NarrationTone, ctx: NarrationContext): Promise<string> {
-    const tonal = TEMPLATES[p.kind]?.[tone];
-    const widened = tonal && tonal.length > 0 ? tonal : this.widen(p);
-    if (!widened.length) return this.fallback(p);
+    const usable = (lines: string[]) => lines.filter((t) => this.canFill(t, p));
+    const fresh = (lines: string[]) =>
+      lines.map((t) => this.fill(t, p)).filter((s) => !ctx.recentText.includes(s));
 
-    const candidates = widened.filter((t) => this.canFill(t, p));
-    if (candidates.length === 0) return this.fallback(p);
-
-    // Anti-repetition: drop any candidate equal (after fill) to recent text.
-    const filled = candidates.map((t) => this.fill(t, p));
-    const fresh = filled.filter((s) => !ctx.recentText.includes(s));
-
-    const pool = fresh.length > 0 ? fresh : filled;
+    // Prefer a fresh line in the requested tone, then a fresh line in any
+    // tone for this phenomenon, and only repeat a recent line as a last
+    // resort. Thin tone buckets used to repeat the same sentence back to back.
+    const tonal = usable(TEMPLATES[p.kind]?.[tone] ?? []);
+    let pool = fresh(tonal);
+    if (pool.length === 0) pool = fresh(usable(this.widen(p)));
+    if (pool.length === 0) pool = tonal.map((t) => this.fill(t, p));
+    if (pool.length === 0) return this.fallback(p);
     return pool[Math.floor(Math.random() * pool.length)];
   }
 
@@ -41,7 +41,10 @@ export class TemplateNarrator implements Narrator {
   }
 
   private canFill(template: string, p: Phenomenon): boolean {
-    if (template.includes("{pct}") && p.deltaPct === null) return false;
+    // Every {pct} template reads as an increase ("40% above baseline"), so a
+    // flat or falling rate must not fill one: the old Math.abs turned a 40%
+    // drop into "40% above baseline".
+    if (template.includes("{pct}") && (p.deltaPct === null || p.deltaPct < 10)) return false;
     if (template.includes("{region}") && !p.region) return false;
     return true;
   }
@@ -49,7 +52,7 @@ export class TemplateNarrator implements Narrator {
   private fill(template: string, p: Phenomenon): string {
     return template
       .replace("{count}", String(p.count))
-      .replace("{pct}", p.deltaPct !== null ? String(Math.abs(p.deltaPct)) : "")
+      .replace("{pct}", p.deltaPct !== null ? String(p.deltaPct) : "")
       .replace("{region}", p.region ?? "the network")
       .replace(/\s+/g, " ")
       .trim();
