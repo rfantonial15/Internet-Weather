@@ -2,15 +2,19 @@ import {
   EffectComposer,
   Bloom,
   Vignette,
-  SMAA,
+  FXAA,
 } from "@react-three/postprocessing";
 import { KernelSize } from "postprocessing";
+import { HalfFloatType } from "three";
 import type { QualityProfile } from "@/config/quality";
 
 /**
  * Postprocessing stack — minimal, restrained. Order:
  *
- *   SMAA    → cheap edge AA. MSAA would re-pay the bloom-pass overhead.
+ *   FXAA    → cheap edge AA. MSAA would re-pay the bloom-pass overhead.
+ *             (SMAA requests the composer depth texture, which in
+ *             postprocessing 6.39 triggers a glBlitFramebuffer error every
+ *             frame. Nothing here needs depth in post, so FXAA avoids it.)
  *   Bloom   → the *only* glow source. Threshold is set high enough that only
  *             genuinely bright pixels (sun terminator, lightning, beams,
  *             event ripples) bloom. Surface and atmosphere stay clean.
@@ -30,11 +34,11 @@ export function PostFX({ profile }: { profile: QualityProfile }) {
     <EffectComposer
       multisampling={0}
       stencilBuffer={false}
-      // Float buffers are unnecessary for our LDR pipeline and add bandwidth
-      // overhead without any visible benefit.
-      frameBufferType={undefined}
+      // Half-float keeps the additive layers and bloom falloff free of
+      // banding; 8-bit buffers visibly step in the dark gradients.
+      frameBufferType={HalfFloatType}
     >
-      <SMAA />
+      <FXAA />
       <Bloom
         intensity={profile.bloomIntensity}
         // Higher threshold = only the brightest pixels bloom. The old value

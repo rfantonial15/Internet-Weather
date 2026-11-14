@@ -1,7 +1,7 @@
 #include ../shared/noise.glsl;
 
 uniform float uTime;
-uniform float uSunYaw;
+uniform vec3 uSunDir;
 uniform float uTension;
 uniform vec3 uDayColor;
 uniform vec3 uNightColor;
@@ -23,14 +23,13 @@ void main() {
   vec3 N = normalize(vNormalW);
   vec3 V = normalize(vViewDir);
 
-  vec3 sunDir = normalize(vec3(cos(uSunYaw), 0.25, sin(uSunYaw)));
-  float ndl = dot(N, sunDir);
+  float ndl = dot(N, normalize(uSunDir));
   float dayMix = smoothstep(-0.05, 0.45, ndl);
 
   // Two scrolling octaves drifting in opposite directions.
   vec3 p1 = N * 2.4 + vec3(uTime * 0.018, 0.0, uTime * 0.011);
   vec3 p2 = N * 6.5 - vec3(uTime * 0.035, 0.0, uTime * 0.020);
-  float n = fbm(p1) * 0.65 + fbm(p2) * 0.35;
+  float n = fbm(p1) * 0.65 + fbm3(p2) * 0.35;
   float density = smoothstep(0.05, 0.55, n);
 
   // Latitude mask: more cloud at equator, less at poles.

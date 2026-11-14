@@ -1,4 +1,5 @@
 import { Suspense, useEffect } from "react";
+import { MotionConfig } from "framer-motion";
 import { RenderPipeline } from "@/core/engine/RenderPipeline";
 import { WorldScene } from "@/scenes/WorldScene";
 import { HUD } from "@/ui/HUD";
@@ -47,6 +48,7 @@ export default function App() {
   }, [booted]);
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="relative h-full w-full bg-ink-900">
       <RenderPipeline>
         <Suspense fallback={null}>
@@ -66,5 +68,6 @@ export default function App() {
       <ClipGallery />
       {!booted && <BootSequence />}
     </div>
+    </MotionConfig>
   );
 }

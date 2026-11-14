@@ -1,22 +1,21 @@
-import { useMemo } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useEffect, useMemo } from "react";
 import { ShaderMaterial, Color, BackSide, AdditiveBlending } from "three";
 import vert from "@/shaders/atmosphere/atmosphere.vert.glsl";
 import frag from "@/shaders/atmosphere/atmosphere.frag.glsl";
 import { palette } from "@/config/colors";
 import { ATMOSPHERE_RADIUS } from "@/config/constants";
-import { useWorldStore } from "@/state/useWorldStore";
+import { frameUniforms } from "@/core/frameUniforms";
 import { useUIStore } from "@/state/useUIStore";
 import { profiles } from "@/config/quality";
 
 /**
- * Cinematic atmospheric scattering. Two-shell volumetric feel built from a
- * single back-side sphere — the multi-band gradient inside the shader is
- * cheaper than rendering an actual second mesh and reads identically at the
- * distances we orbit at.
+ * Limb glow from one back-side shell: brightness follows how closely each
+ * view ray skims the planet, so the halo hugs the limb and fades outward.
+ * Sun direction and tension come from the shared uniforms.
  */
 export function Atmosphere() {
   const detail = profiles[useUIStore((s) => s.quality)].sphereDetail;
+
   const material = useMemo(
     () =>
       new ShaderMaterial({
@@ -27,27 +26,20 @@ export function Atmosphere() {
         depthWrite: false,
         blending: AdditiveBlending,
         uniforms: {
+          ...frameUniforms,
           uColorInner: { value: new Color(palette.atmosphere) },
           uColorOuter: { value: new Color(palette.rim) },
-          uColorWarm: { value: new Color("#ff8a3d") },
+          uColorWarm: { value: new Color(palette.terminator) },
           uColorTense: { value: new Color(palette.rageHot) },
-          uTension: { value: 0.2 },
-          uTime: { value: 0 },
-          uSunYaw: { value: 0.6 },
+          uShellRadius: { value: ATMOSPHERE_RADIUS },
         },
       }),
     [],
   );
-
-  useFrame(() => {
-    const { elapsed, tension, sunYaw } = useWorldStore.getState();
-    material.uniforms.uTime.value = elapsed;
-    material.uniforms.uTension.value = tension;
-    material.uniforms.uSunYaw.value = sunYaw;
-  });
+  useEffect(() => () => material.dispose(), [material]);
 
   return (
-    <mesh material={material} renderOrder={2}>
+    <mesh material={material} renderOrder={4}>
       <sphereGeometry args={[ATMOSPHERE_RADIUS, detail, detail]} />
     </mesh>
   );

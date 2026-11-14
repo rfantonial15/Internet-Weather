@@ -9,6 +9,7 @@ import {
   Points,
 } from "three";
 import { weather } from "@/simulation/WeatherSystem";
+import { frameUniforms } from "@/core/frameUniforms";
 
 /**
  * GPU consumer for `weather.storms`. Reads its three typed arrays directly
@@ -42,11 +43,12 @@ export function StormCellsRenderer() {
       transparent: true,
       depthWrite: false,
       blending: AdditiveBlending,
-      uniforms: { uTime: { value: 0 } },
+      uniforms: { uTime: { value: 0 }, uPointScale: frameUniforms.uPointScale },
       vertexShader: /* glsl */ `
         attribute float aBirth;
         attribute float aLife;
         uniform float uTime;
+        uniform float uPointScale;
         varying vec3 vCol;
         varying float vAlpha;
         void main() {
@@ -57,7 +59,7 @@ export function StormCellsRenderer() {
           vAlpha = max(0.0, fade);
           vec4 mv = modelViewMatrix * vec4(position, 1.0);
           gl_Position = projectionMatrix * mv;
-          gl_PointSize = (4.0 + 6.0 * vAlpha) * (240.0 / -mv.z);
+          gl_PointSize = min(40.0, (0.006 + 0.008 * vAlpha) * uPointScale / -mv.z);
         }
       `,
       fragmentShader: /* glsl */ `
@@ -68,7 +70,7 @@ export function StormCellsRenderer() {
           float d = length(c);
           if (d > 0.5) discard;
           float fall = pow(1.0 - d * 2.0, 2.0);
-          gl_FragColor = vec4(vCol * fall * 1.6, fall * vAlpha);
+          gl_FragColor = vec4(vCol * fall * 1.3, fall * vAlpha * 0.85);
         }
       `,
       vertexColors: true,

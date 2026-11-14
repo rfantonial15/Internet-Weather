@@ -21,7 +21,7 @@ import { geoToVec3 } from "@/utils/geo";
  * zones cost.
  */
 const ZONE_LIFE_SEC = 9.5;
-const MAX_RADIUS = 0.45;
+const MAX_RADIUS = 0.13;
 
 export class HeatField extends SimModule {
   readonly name = "heat";

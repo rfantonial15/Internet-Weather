@@ -16,9 +16,11 @@ export interface ClipRecord {
   durationMs: number;
   /** ms since epoch — used as "captured at" in the gallery. */
   t: number;
-  /** Pixel size the clip was rendered at, for reference in the gallery. */
+  /** Real pixel size of the recorded file. */
   width: number;
   height: number;
+  /** Container/codec actually used (mp4 where supported, else webm). */
+  mimeType: string;
   /** Bytes — gallery shows this so users know what they're downloading. */
   size: number;
 }

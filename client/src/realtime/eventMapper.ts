@@ -1,16 +1,53 @@
-import type { WeatherEvent } from "@iw/shared";
+import type { EventKind, WeatherEvent } from "@iw/shared";
 import { useEventStore } from "@/state/useEventStore";
 
+const KINDS: ReadonlySet<EventKind> = new Set<EventKind>([
+  "rage",
+  "wholesome",
+  "viral",
+  "trend",
+  "news",
+  "build",
+  "controversy",
+  "meme",
+]);
+
+const MAX_LABEL = 64;
+
 /**
- * Single ingestion seam. Server messages land here; they are normalized
- * (sanity-checked + intensity clamped) and pushed into the global store.
+ * Single ingestion seam. Every event (server or local simulation) lands
+ * here, is validated and normalized, and is pushed into the store.
  *
- * If we later add transforms (decay, dedupe, geo-jitter), they belong here —
- * not inside individual visual systems.
+ *   - Unknown kinds are dropped: every visual system indexes tables by kind,
+ *     so one bad frame from a server would otherwise crash the render loop.
+ *   - Coordinates must be finite and are clamped to valid ranges.
+ *   - `t` is restamped with the local receive time. Lifetimes and fades are
+ *     computed against `Date.now()` on this machine, so a server whose clock
+ *     is a few seconds off can't make events appear early or linger.
  */
-export function ingest(e: WeatherEvent) {
-  if (!e || typeof e.id !== "string" || typeof e.kind !== "string") return;
-  const intensity = Math.max(0, Math.min(1, e.intensity ?? 0.5));
-  const t = typeof e.t === "number" ? e.t : Date.now();
-  useEventStore.getState().push({ ...e, intensity, t });
+export function ingest(raw: WeatherEvent) {
+  if (!raw || typeof raw !== "object") return;
+  if (typeof raw.id !== "string" || !KINDS.has(raw.kind)) return;
+
+  const intensity = Number.isFinite(raw.intensity)
+    ? Math.max(0, Math.min(1, raw.intensity))
+    : 0.5;
+
+  let at: WeatherEvent["at"];
+  if (raw.at && Number.isFinite(raw.at.lat) && Number.isFinite(raw.at.lon)) {
+    const lat = Math.max(-90, Math.min(90, raw.at.lat));
+    const lon = ((((raw.at.lon + 180) % 360) + 360) % 360) - 180;
+    at = { lat, lon };
+  }
+
+  const e: WeatherEvent = {
+    id: raw.id.slice(0, 96),
+    kind: raw.kind,
+    intensity,
+    t: Date.now(),
+    at,
+    label: typeof raw.label === "string" ? raw.label.slice(0, MAX_LABEL) : undefined,
+    source: typeof raw.source === "string" ? raw.source.slice(0, 32) : "unknown",
+  };
+  useEventStore.getState().push(e);
 }

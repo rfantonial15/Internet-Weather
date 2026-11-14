@@ -9,6 +9,7 @@ import {
   Points,
 } from "three";
 import { weather } from "@/simulation/WeatherSystem";
+import { frameUniforms } from "@/core/frameUniforms";
 
 /**
  * GPU consumer for `weather.swarm`. Per-particle positions are recomputed
@@ -45,12 +46,13 @@ export function MemeSwarmRenderer() {
       depthWrite: false,
       blending: AdditiveBlending,
       vertexColors: true,
-      uniforms: { uTime: { value: 0 } },
+      uniforms: { uTime: { value: 0 }, uPointScale: frameUniforms.uPointScale },
       vertexShader: /* glsl */ `
         attribute float aBirth;
         attribute float aLife;
         attribute float aPhase;
         uniform float uTime;
+        uniform float uPointScale;
         varying vec3 vCol;
         varying float vAlpha;
         void main() {
@@ -66,7 +68,7 @@ export function MemeSwarmRenderer() {
           vAlpha = max(0.0, fade * wob);
           vec4 mv = modelViewMatrix * vec4(position, 1.0);
           gl_Position = projectionMatrix * mv;
-          gl_PointSize = (3.5 + 4.0 * vAlpha) * (220.0 / -mv.z);
+          gl_PointSize = min(32.0, (0.005 + 0.005 * vAlpha) * uPointScale / -mv.z);
         }
       `,
       fragmentShader: /* glsl */ `
@@ -77,7 +79,7 @@ export function MemeSwarmRenderer() {
           float d = length(c);
           if (d > 0.5) discard;
           float fall = pow(1.0 - d * 2.0, 2.0);
-          gl_FragColor = vec4(vCol * fall * 1.7, fall * vAlpha);
+          gl_FragColor = vec4(vCol * fall * 1.4, fall * vAlpha);
         }
       `,
     });

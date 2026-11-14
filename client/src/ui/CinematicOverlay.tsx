@@ -24,7 +24,7 @@ export function CinematicOverlay() {
   const phase = useCinematicStore((s) => s.phase);
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-30 select-none">
+    <div className="pointer-events-none absolute inset-0 z-30 select-none" aria-hidden={!active}>
       <AnimatePresence>{active && <Letterbox key="lb" />}</AnimatePresence>
 
       <AnimatePresence>
@@ -131,11 +131,11 @@ function RecPill({ phase }: { phase: string }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -4 }}
       transition={{ duration: 0.3 }}
-      className="absolute right-10 top-7 flex items-center gap-2 border border-paper-ghost bg-black/55 px-3 py-1.5"
+      className="absolute right-4 top-[calc(5.5rem+env(safe-area-inset-top))] flex items-center gap-2 border border-paper-ghost bg-black/55 px-3 py-1.5 sm:right-10 sm:top-28"
     >
       {/* Solid dot, no pulse animation. Captures the "recording" state without
           the alarm-UI ping. */}
-      <span className="h-1.5 w-1.5 rounded-full bg-[rgba(255,140,140,0.92)]" />
+      <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[rgba(255,140,140,0.92)]" />
       <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-paper">
         rec · {phase}
       </span>

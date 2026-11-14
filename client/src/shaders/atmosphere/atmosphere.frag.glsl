@@ -4,58 +4,44 @@ uniform vec3 uColorWarm;
 uniform vec3 uColorTense;
 uniform float uTension;
 uniform float uTime;
-uniform float uSunYaw;
+uniform vec3 uSunDir;
+uniform float uShellRadius;
 
-varying vec3 vNormalW;
-varying vec3 vViewDir;
+varying vec3 vPosW;
 
 /**
- * Cinematic atmospheric scattering, fake-volumetric.
+ * Limb glow, rendered on the back faces of a shell around the planet.
  *
- * We render the back faces of a sphere slightly larger than the planet and
- * blend three view-angle bands:
- *   - far rim       → deep cyan/blue (Rayleigh-ish)
- *   - mid altitude  → soft inner blue
- *   - near limb     → bright halo (Mie-ish forward-scatter)
+ * For each fragment we take the view ray and find how close it passes to the
+ * planet centre (impact parameter b). Rays that skim the surface (b near 1)
+ * travel through the most air and glow brightest; the glow falls to zero at
+ * the shell radius. Rays with b < 1 hit the planet, and the planet's depth
+ * hides them. This gives a soft halo hugging the limb instead of a flat band.
  *
- * The sun direction modulates the whole thing: where the limb faces the sun,
- * we blend a warm orange (the "Earth-from-ISS" sunlit edge). Tension shifts
- * the inner band toward magenta without ever fully losing the cyan rim, so
- * the planet always reads as a planet — never as pure light.
+ * Colour: deep blue outside, cyan near the limb, warm where the limb faces
+ * the sun, and a magenta cast on the day side as global tension rises.
  */
 void main() {
-  vec3 N = normalize(vNormalW);
-  vec3 V = normalize(vViewDir);
+  vec3 rayDir = normalize(vPosW - cameraPosition);
+  float b = length(cross(cameraPosition, rayDir));
+  float t = clamp((b - 1.0) / (uShellRadius - 1.0), 0.0, 1.0);
 
-  // Inverted because we're inside-out (BackSide rendering).
-  float ndv = max(dot(N, -V), 0.0);
-  float fres = pow(1.0 - ndv, 2.0);
-  float halo = pow(fres, 1.5);
-  float limb = pow(fres, 5.0);
+  float glow = pow(1.0 - t, 2.6);
+  float core = pow(1.0 - t, 9.0);
 
-  // Sun direction must match the earth shader so terminator scattering aligns.
-  vec3 sunDir = normalize(vec3(cos(uSunYaw), 0.25, sin(uSunYaw)));
-  float sunDot = dot(N, sunDir);
-  float sunFactor = smoothstep(-0.35, 0.55, sunDot);
+  // Sun side of the limb: use the direction of the closest-approach point.
+  vec3 closest = normalize(cameraPosition + rayDir * dot(-cameraPosition, rayDir));
+  float sunDot = dot(closest, normalize(uSunDir));
+  float day = smoothstep(-0.35, 0.5, sunDot);
+  float warm = smoothstep(-0.15, 0.25, sunDot) * (1.0 - smoothstep(0.25, 0.75, sunDot));
 
-  // Three-stop view-angle gradient.
-  vec3 col = mix(uColorOuter, uColorInner, fres);
-  col = mix(col, uColorInner * 1.6, limb);
+  vec3 col = mix(uColorOuter, uColorInner, glow);
+  col = mix(col, uColorInner * 1.4, core);
+  col = mix(col, uColorWarm, warm * 0.55);
+  col = mix(col, uColorTense, uTension * 0.45 * day * glow);
 
-  // Warm sunlit rim — strongest where the sun grazes the limb.
-  float warm = limb * smoothstep(-0.05, 0.45, sunDot);
-  col = mix(col, uColorWarm, warm * 0.75);
+  float breath = 0.94 + 0.06 * sin(uTime * 0.45);
+  float alpha = glow * (0.22 + 0.78 * day) * breath;
 
-  // Tension drips magenta into the inner band on the day side only.
-  vec3 tenseCol = mix(col, uColorTense, uTension * 0.55);
-  col = mix(col, tenseCol, halo * sunFactor);
-
-  // Slow planetary breathing — barely perceptible but reads alive.
-  float breath = 0.92 + 0.08 * sin(uTime * 0.45);
-
-  // Alpha: thicker at the limb, day-side biased so the night side fades.
-  float alpha = halo * (0.35 + sunFactor * 0.85);
-  alpha = clamp(alpha, 0.0, 1.0);
-
-  gl_FragColor = vec4(col * breath, alpha);
+  gl_FragColor = vec4(col, alpha);
 }

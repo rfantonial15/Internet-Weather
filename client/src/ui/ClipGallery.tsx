@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import {
   ASPECT_PRESETS,
@@ -7,18 +7,15 @@ import {
   useCinematicStore,
 } from "@/state/useCinematicStore";
 import { clipFilename, getCaptureDirector } from "@/cinematic/captureDirector";
-import { downloadBlob } from "@/cinematic/clipRecorder";
+import { downloadBlobUrl, extensionFor, pickMime } from "@/cinematic/clipRecorder";
 
 /**
- * Drawer-style gallery for the clips the capture director has produced.
+ * Drawer for the clips the capture director has produced.
  *
- *   - Toggle button lives bottom-right of the HUD; opens an inset panel.
- *   - Panel is hard-edged, no rounded corners, in keeping with the rest of
- *     the HUD's "documents over dashboards" tone.
- *   - Each clip lists title, when it fired, the originating event kind,
- *     and download options for TikTok / X / Shorts. (We re-render on the
- *     stored aspect; cross-aspect re-export would require re-recording, so
- *     we just expose direct download of whatever the clip was captured at.)
+ *   - Toggle button bottom-right; Esc or "close" dismisses the drawer.
+ *   - Hard-edged panel in keeping with the HUD ("documents over dashboards").
+ *   - Each clip shows its real recorded size and format, previews on hover,
+ *     focus or tap, and downloads straight from its blob URL.
  */
 export function ClipGallery() {
   const open = useCinematicStore((s) => s.galleryOpen);
@@ -29,18 +26,33 @@ export function ClipGallery() {
   const preferred = useCinematicStore((s) => s.preferredAspect);
   const setPreferred = useCinematicStore((s) => s.setPreferredAspect);
   const active = useCinematicStore((s) => s.active);
+  const reduce = useReducedMotion();
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+  const supported = useState(() => pickMime() !== null)[0];
+
+  useEffect(() => {
+    if (!open) return;
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, setOpen]);
 
   return (
     <>
-      <ToggleButton open={open} onClick={() => setOpen(!open)} unread={clips.length} active={active} />
+      <ToggleButton open={open} onClick={() => setOpen(!open)} count={clips.length} active={active} />
       <AnimatePresence>
         {open && (
           <motion.aside
-            initial={{ x: "100%", opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: "100%", opacity: 0 }}
+            role="dialog"
+            aria-label="Clip reel"
+            initial={reduce ? { opacity: 0 } : { x: "100%", opacity: 0 }}
+            animate={reduce ? { opacity: 1 } : { x: 0, opacity: 1 }}
+            exit={reduce ? { opacity: 0 } : { x: "100%", opacity: 0 }}
             transition={{ duration: 0.32, ease: [0.65, 0, 0.35, 1] }}
-            className="pointer-events-auto absolute right-0 top-0 z-40 flex h-full w-[360px] flex-col border-l border-white/10 bg-black/75"
+            className="pointer-events-auto absolute right-0 top-0 z-40 flex h-full w-full flex-col border-l border-white/10 bg-black/80 sm:w-[360px]"
           >
             <header className="flex items-center justify-between border-b border-paper-ghost px-5 py-4">
               <div className="flex flex-col gap-0.5">
@@ -50,17 +62,27 @@ export function ClipGallery() {
                 </span>
               </div>
               <button
+                ref={closeRef}
                 onClick={() => setOpen(false)}
-                className="font-mono text-[10px] uppercase tracking-[0.24em] text-paper-mute hover:text-paper"
+                className="focus-ring px-2 py-1 font-mono text-[10px] uppercase tracking-[0.24em] text-paper-mute hover:text-paper"
               >
                 close
               </button>
             </header>
 
             <div className="flex flex-col gap-3 border-b border-paper-ghost px-5 py-4">
-              <ToggleRow label="auto-capture" value={auto} onChange={setAuto} />
-              <AspectRow value={preferred} onChange={setPreferred} />
-              <CaptureNowButton />
+              {supported ? (
+                <>
+                  <ToggleRow label="auto-capture" value={auto} onChange={setAuto} />
+                  <AspectRow value={preferred} onChange={setPreferred} />
+                  <CaptureNowButton />
+                </>
+              ) : (
+                <p className="text-[12px] leading-relaxed text-paper-faint">
+                  This browser can't record video from the page. Try a recent Chrome, Edge,
+                  Firefox or Safari.
+                </p>
+              )}
             </div>
 
             <div className="flex-1 overflow-y-auto px-3 py-3">
@@ -84,26 +106,28 @@ export function ClipGallery() {
 function ToggleButton({
   open,
   onClick,
-  unread,
+  count,
   active,
 }: {
   open: boolean;
   onClick: () => void;
-  unread: number;
+  count: number;
   active: boolean;
 }) {
   return (
     <button
       onClick={onClick}
-      className="pointer-events-auto absolute bottom-7 right-10 z-20 flex items-center gap-2.5 border border-paper-ghost bg-black/55 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.28em] text-paper hover:border-paper-faint hover:bg-black/70"
+      aria-expanded={open}
+      aria-label={`Clip reel, ${count} ${count === 1 ? "clip" : "clips"}${active ? ", recording" : ""}`}
+      className="focus-ring pointer-events-auto absolute bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-20 flex items-center gap-2.5 border border-paper-ghost bg-black/55 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.28em] text-paper hover:border-paper-faint hover:bg-black/70 sm:bottom-7 sm:right-10"
     >
-      {/* Static dot. Active state shifts colour, doesn't pulse. */}
       <span
+        aria-hidden
         className="h-1.5 w-1.5 rounded-full"
         style={{ background: active ? "rgba(255,140,140,0.92)" : "var(--accent)" }}
       />
-      <span>reel · {String(unread).padStart(2, "0")}</span>
-      <span className="text-paper-faint">{open ? "▸" : "◂"}</span>
+      <span>reel {String(count).padStart(2, "0")}</span>
+      <span aria-hidden className="text-paper-faint">{open ? "▸" : "◂"}</span>
     </button>
   );
 }
@@ -118,44 +142,43 @@ function ToggleRow({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between">
-      <span className="hud-label hud-label--mute">{label}</span>
+    <div className="flex items-center justify-between">
+      <span className="hud-label hud-label--mute" id={`lbl-${label}`}>
+        {label}
+      </span>
       <button
         type="button"
+        role="switch"
+        aria-checked={value}
+        aria-labelledby={`lbl-${label}`}
         onClick={() => onChange(!value)}
-        className={`relative inline-flex h-[18px] w-8 items-center border transition ${
-          value
-            ? "border-accent-dim bg-[rgba(158,200,255,0.20)]"
-            : "border-paper-ghost bg-transparent"
+        className={`focus-ring relative inline-flex h-[18px] w-8 items-center border transition ${
+          value ? "border-accent-dim bg-[rgba(158,200,255,0.20)]" : "border-paper-ghost bg-transparent"
         }`}
       >
         <span
+          aria-hidden
           className={`absolute h-[10px] w-[10px] transition-all ${
             value ? "left-[18px] bg-accent" : "left-1 bg-paper-faint"
           }`}
         />
       </button>
-    </label>
+    </div>
   );
 }
 
-function AspectRow({
-  value,
-  onChange,
-}: {
-  value: AspectKey;
-  onChange: (a: AspectKey) => void;
-}) {
+function AspectRow({ value, onChange }: { value: AspectKey; onChange: (a: AspectKey) => void }) {
   const opts: AspectKey[] = ["tiktok", "shorts", "x", "landscape"];
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2" role="group" aria-label="Clip aspect">
       <span className="hud-label hud-label--mute">aspect</span>
       <div className="grid grid-cols-2 gap-1">
         {opts.map((o) => (
           <button
             key={o}
+            aria-pressed={value === o}
             onClick={() => onChange(o)}
-            className={`border px-2 py-1.5 text-left font-mono text-[10px] uppercase tracking-[0.22em] transition ${
+            className={`focus-ring border px-2 py-1.5 text-left font-mono text-[10px] uppercase tracking-[0.22em] transition ${
               value === o
                 ? "border-accent-dim bg-[rgba(158,200,255,0.10)] text-paper"
                 : "border-paper-ghost bg-transparent text-paper-mute hover:border-paper-faint hover:text-paper"
@@ -171,14 +194,22 @@ function AspectRow({
 
 function CaptureNowButton() {
   const active = useCinematicStore((s) => s.active);
+  const [failed, setFailed] = useState(false);
   return (
-    <button
-      disabled={active}
-      onClick={() => getCaptureDirector()?.manualCapture()}
-      className="border border-paper-faint px-3 py-2 font-mono text-[10px] uppercase tracking-[0.28em] text-paper transition hover:border-accent-dim hover:bg-[rgba(158,200,255,0.06)] disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      {active ? "recording…" : "capture now"}
-    </button>
+    <div className="flex flex-col gap-1.5">
+      <button
+        disabled={active}
+        onClick={() => setFailed(!getCaptureDirector()?.manualCapture())}
+        className="focus-ring border border-paper-faint px-3 py-2 font-mono text-[10px] uppercase tracking-[0.28em] text-paper transition hover:border-accent-dim hover:bg-[rgba(158,200,255,0.06)] disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {active ? "recording…" : "capture now"}
+      </button>
+      {failed && !active && (
+        <span role="status" className="text-[11px] text-paper-faint">
+          Nothing to film yet. Wait for a signal to land and try again.
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -187,7 +218,7 @@ function EmptyState() {
     <div className="px-5 py-8 text-center text-[12px] leading-relaxed text-paper-faint">
       <span className="block">No clips yet.</span>
       <span className="mt-1 block">
-        Stories are detected automatically — or use{" "}
+        Turn on auto-capture to film stories as they form, or use{" "}
         <span className="text-paper">capture now</span>.
       </span>
     </div>
@@ -196,33 +227,37 @@ function EmptyState() {
 
 function ClipCard({ clip }: { clip: ClipRecord }) {
   const remove = useCinematicStore((s) => s.removeClip);
-  const dim = ASPECT_PRESETS[clip.aspect];
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [hovered, setHovered] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
 
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
-    if (hovered) v.play().catch(() => undefined);
+    if (previewing) v.play().catch(() => undefined);
     else {
       v.pause();
       v.currentTime = 0;
     }
-  }, [hovered]);
+  }, [previewing]);
 
-  const onDownload = () => {
-    fetch(clip.url)
-      .then((r) => r.blob())
-      .then((b) => downloadBlob(b, clipFilename(clip)));
-  };
+  const ext = extensionFor(clip.mimeType).toUpperCase();
 
   return (
     <li
       className="flex flex-col border border-paper-ghost bg-white/[0.015]"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={() => setPreviewing(true)}
+      onMouseLeave={() => setPreviewing(false)}
     >
-      <div className="relative" style={{ aspectRatio: `${dim.w} / ${dim.h}` }}>
+      <button
+        type="button"
+        aria-label={`Preview ${clip.title.title}`}
+        aria-pressed={previewing}
+        onClick={() => setPreviewing((p) => !p)}
+        onFocus={() => setPreviewing(true)}
+        onBlur={() => setPreviewing(false)}
+        className="focus-ring relative block w-full"
+        style={{ aspectRatio: `${clip.width} / ${clip.height}`, maxHeight: 420 }}
+      >
         <video
           ref={videoRef}
           src={clip.url}
@@ -230,32 +265,34 @@ function ClipCard({ clip }: { clip: ClipRecord }) {
           playsInline
           loop
           preload="metadata"
-          className="h-full w-full object-cover"
+          className="h-full w-full bg-black object-contain"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 px-3 pb-3 pt-2">
+        <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
+        <span className="absolute bottom-0 left-0 right-0 px-3 pb-3 pt-2 text-left">
           <span className="block font-mono text-[9px] uppercase tracking-[0.28em] text-paper-mute">
             {clip.title.eyebrow}
           </span>
           <span className="mt-1 block font-display text-[13px] font-light uppercase leading-tight tracking-wide text-paper">
             {clip.title.title}
           </span>
-        </div>
-        <span className="absolute right-2 top-2 font-mono text-[9px] uppercase tracking-[0.22em] text-paper-faint tabular-nums">
-          {Math.round(clip.durationMs / 100) / 10}s · {dim.w}×{dim.h}
         </span>
-      </div>
+        <span className="absolute right-2 top-2 font-mono text-[9px] uppercase tracking-[0.22em] text-paper-faint tabular-nums">
+          {Math.round(clip.durationMs / 100) / 10}s · {clip.width}×{clip.height}
+        </span>
+      </button>
 
       <div className="flex items-center justify-between border-t border-paper-ghost px-3 py-2 font-mono text-[10px] uppercase tracking-[0.22em] text-paper-faint tabular-nums">
-        <span>{formatBytes(clip.size)}</span>
+        <span>
+          {ext} · {formatBytes(clip.size)}
+        </span>
         <div className="flex gap-3">
-          <button onClick={onDownload} className="text-paper hover:text-accent">
+          <button
+            onClick={() => downloadBlobUrl(clip.url, clipFilename(clip))}
+            className="focus-ring text-paper hover:text-accent"
+          >
             download
           </button>
-          <button
-            onClick={() => remove(clip.id)}
-            className="text-paper-faint hover:text-paper"
-          >
+          <button onClick={() => remove(clip.id)} className="focus-ring text-paper-faint hover:text-paper">
             remove
           </button>
         </div>

@@ -1,10 +1,14 @@
 #include ../shared/noise.glsl;
+#include ../shared/geo.glsl;
 
 uniform float uTime;
 uniform float uTension;
 uniform float uEnergy;
 uniform vec3 uColorCool;
 uniform vec3 uColorHot;
+uniform sampler2D uEarthMap;
+uniform float uLandReady;
+uniform vec3 uSunDir;
 
 varying vec3 vNormalW;
 varying vec3 vViewDir;
@@ -25,24 +29,19 @@ varying vec3 vViewDir;
  *   5. uEnergy (driven by viral / news activity) thickens the filaments;
  *      uTension recolors them from cool cyan to hot magenta.
  *
- * Cost: one shell sphere, one fragment shader pass, no textures, no CPU.
+ * Cost: one shell sphere, one texture fetch, four noise calls per pixel.
  */
-
-float continentMask(vec3 p) {
-  float n = fbm(p * 1.6);
-  n += 0.4 * fbm(p * 4.2);
-  return smoothstep(0.05, 0.35, n);
-}
 
 void main() {
   vec3 N = normalize(vNormalW);
   vec3 V = normalize(vViewDir);
 
-  float mask = continentMask(N * 1.3);
+  vec4 map = texture2D(uEarthMap, earthUv(N));
+  float mask = map.r * (0.25 + 0.75 * smoothstep(0.0, 0.3, map.b)) * uLandReady;
   if (mask < 0.02) discard;
 
   // Slow drifting flow field — defines the "grain" of the nervous system.
-  float flow = fbm(N * 4.5 + vec3(0.0, uTime * 0.12, 0.0));
+  float flow = fbm3(N * 4.5 + vec3(0.0, uTime * 0.12, 0.0));
 
   // Two interfering bands → thin filaments along the flow.
   float band1 = sin(flow * 14.0 + uTime * 1.1);
@@ -63,8 +62,11 @@ void main() {
   float ndv = max(dot(N, V), 0.0);
   float limbFade = smoothstep(0.0, 0.25, ndv);
 
-  float alpha = intensity * limbFade * (0.5 + uEnergy * 0.6);
-  vec3 final = col * intensity * (1.4 + uEnergy * 0.8);
+  // The network reads best against the night side; daylight mutes it.
+  float day = smoothstep(-0.1, 0.4, dot(N, normalize(uSunDir)));
+  float presence = limbFade * mix(1.0, 0.25, day) * (0.16 + uEnergy * 0.9);
+  float alpha = intensity * presence;
+  vec3 final = col * intensity * presence * 1.3;
 
   gl_FragColor = vec4(final, alpha);
 }

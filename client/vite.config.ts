@@ -6,10 +6,11 @@ import path from "node:path";
 export default defineConfig({
   plugins: [react(), glsl({ compress: false })],
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "src"),
-      "@iw/shared": path.resolve(__dirname, "../shared/types.ts"),
-    },
+    alias: [
+      { find: /^@\//, replacement: path.resolve(__dirname, "src") + "/" },
+      { find: /^@iw\/shared$/, replacement: path.resolve(__dirname, "../shared/types.ts") },
+      { find: /^@iw\/shared\/(.*)$/, replacement: path.resolve(__dirname, "../shared") + "/$1" },
+    ],
   },
   server: {
     port: 5173,
