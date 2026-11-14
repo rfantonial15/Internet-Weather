@@ -1,6 +1,6 @@
 {
   "name": "@iw/client",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,7 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@iw/shared": "0.2.0",
+    "@iw/shared": "0.3.0",
     "@react-three/fiber": "^8.17.10",
     "@react-three/postprocessing": "^2.16.3",
     "framer-motion": "^11.11.0",

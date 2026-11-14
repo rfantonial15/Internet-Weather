@@ -8,6 +8,9 @@ import { BootSequence } from "@/ui/BootSequence";
 import { CinematicOverlay } from "@/ui/CinematicOverlay";
 import { ClipGallery } from "@/ui/ClipGallery";
 import { ContextLostNotice } from "@/ui/ContextLostNotice";
+import { FieldGuide } from "@/ui/FieldGuide";
+import { linkedCity } from "@/utils/home";
+import { useCameraStore } from "@/state/useCameraStore";
 import { useRealtime } from "@/hooks/useRealtime";
 import { useUIStore } from "@/state/useUIStore";
 import { initCaptureDirector } from "@/cinematic/captureDirector";
@@ -23,6 +26,7 @@ import { getSourceCanvas } from "@/cinematic/sourceCanvas";
  *   z-20  narration overlay (mid-frame caption)
  *   z-20  clip gallery toggle button
  *   z-30  cinematic overlay (letterbox + title; only mounted while active)
+ *   z-30  field guide (legend panel, above the narration line)
  *   z-40  clip gallery drawer (modal-ish surface)
  *   z-50  boot sequence (cold-start veil)
  *
@@ -48,6 +52,13 @@ export default function App() {
     return () => handle.dispose();
   }, [booted]);
 
+  // A shared `?city=` link opens on that city once the boot veil lifts.
+  useEffect(() => {
+    if (!booted) return;
+    const c = linkedCity();
+    if (c) useCameraStore.getState().focusOn({ lat: c.lat, lon: c.lon }, { distance: 2.8, durationMs: 10000 });
+  }, [booted]);
+
   return (
     // reducedMotion="user": every framer-motion animation honours the OS
     // "reduce motion" setting.
@@ -69,6 +80,7 @@ export default function App() {
         <NarrationOverlay />
         <CinematicOverlay />
         <ClipGallery />
+        <FieldGuide />
         <ContextLostNotice />
         {!booted && <BootSequence />}
       </div>

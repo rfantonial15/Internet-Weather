@@ -6,6 +6,8 @@ import { Reticle } from "./Reticle";
 import { TensionMeter } from "./TensionMeter";
 import { Chrono } from "./components/Chrono";
 import { CoordReadout } from "./components/CoordReadout";
+import { LocalWeatherCard, LocalWeatherLine } from "./LocalWeather";
+import { FieldGuideButton } from "./FieldGuide";
 
 /**
  * The HUD layer. Layout principles:
@@ -43,7 +45,11 @@ export function HUD() {
           <h1 className="hud-label hud-label--strong">Internet Weather</h1>
         </div>
         <span className="hud-label hud-label--mute">obs · planetary uplink</span>
-        <span className="hud-label hud-label--faint hidden sm:block">spec · v.0.2.0</span>
+        <span className="hud-label hud-label--faint hidden sm:block">spec · v.0.3.0</span>
+        <div className="mt-1.5 flex flex-col gap-1.5">
+          <LocalWeatherLine />
+          <FieldGuideButton />
+        </div>
       </div>
 
       {/* Top-right: chrono + status */}
@@ -61,6 +67,7 @@ export function HUD() {
       </div>
 
       <Reticle />
+      <LocalWeatherCard />
       <CoordReadout />
       <TensionMeter />
 
