@@ -14,3 +14,4 @@ server/dist/
 
 # Local Claude Code settings (machine-specific permissions)
 .claude/settings.local.json
+*.tsbuildinfo
