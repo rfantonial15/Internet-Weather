@@ -29,7 +29,12 @@ export function useRealtime() {
     };
 
     const offMsg = socket.on((msg) => {
-      if (msg.type === "event") {
+      if (msg.type === "hello") {
+        const list = Array.isArray(msg.sources) ? msg.sources : [];
+        useUIStore.getState().setFeed(
+          list.filter((s): s is string => typeof s === "string").slice(0, 8).map((s) => s.slice(0, 24)),
+        );
+      } else if (msg.type === "event") {
         goServer();
         ingest(msg.event);
       } else if (msg.type === "narration") {
@@ -41,7 +46,10 @@ export function useRealtime() {
     });
     const offConn = socket.onConnect((c) => {
       setConnected(c);
-      if (!c) goLocal();
+      if (!c) {
+        useUIStore.getState().setFeed([]);
+        goLocal();
+      }
     });
 
     goLocal();

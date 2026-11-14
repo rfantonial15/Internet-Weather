@@ -44,6 +44,8 @@ export function FieldGuide() {
   const open = useUIStore((s) => s.guideOpen);
   const setOpen = useUIStore((s) => s.setGuideOpen);
   const connected = useUIStore((s) => s.connected);
+  const feed = useUIStore((s) => s.feed);
+  const wiki = connected && feed.includes("wikipedia");
   const city = useHomeStore((s) => s.city);
   const setCity = useHomeStore((s) => s.setCity);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -131,8 +133,8 @@ export function FieldGuide() {
             <p>drag to turn · scroll or pinch to zoom · double-click to reset</p>
             <p>click a signal to lock on · esc to let go · ? opens this guide</p>
             <p className="pt-1">
-              {connected
-                ? "signals come from the live server feed."
+              {wiki
+                ? "signals are live wikipedia edits, placed near cities where each language is spoken. usernames and page titles are never shown."
                 : "signals are simulated right now, placed near real cities."}
             </p>
           </div>

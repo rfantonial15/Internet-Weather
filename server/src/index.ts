@@ -20,7 +20,7 @@ wss.on("connection", (ws) => {
   // Client messages are currently ignored; the stream is the same for all.
   ws.on("message", () => undefined);
   broadcaster.attach(ws);
-  const hello: ServerMessage = { type: "hello", serverTime: Date.now(), tickRate: 4 };
+  const hello: ServerMessage = { type: "hello", serverTime: Date.now(), tickRate: 4, sources: pipeline.sources };
   ws.send(JSON.stringify(hello));
 });
 
@@ -83,5 +83,5 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 
 wss.on("listening", () => {
-  console.log(`[internet-weather] ws server listening on ${HOST}:${PORT}/ws`);
+  console.log(`[internet-weather] ws server listening on ${HOST}:${PORT}/ws (sources: ${pipeline.sources.join(", ")})`);
 });

@@ -273,7 +273,7 @@ function bake(polygons: Polygon[]): CanvasTexture {
   // as a circle on the sphere.
   for (const c of CITIES) {
     const stretch = 1 / Math.max(0.2, Math.cos((c.lat * Math.PI) / 180));
-    const rDeg = 0.2 + Math.sqrt(c.pop) * 0.1;
+    const rDeg = 0.15 + Math.sqrt(c.pop) * 0.08;
     const r = rDeg * degY;
     const x = px(c.lon);
     const y = py(c.lat);
@@ -282,9 +282,12 @@ function bake(polygons: Polygon[]): CanvasTexture {
       ctx.translate(x + off, y);
       ctx.scale(stretch, 1);
       const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
-      const core = Math.min(0.9, 0.3 + c.pop / 40);
+      // Bright pinpoint core with a quick falloff: the sprawl comes from
+      // the specks below, not from a wide flat disc.
+      const core = Math.min(0.85, 0.35 + c.pop / 50);
       g.addColorStop(0, `rgba(0,0,255,${core})`);
-      g.addColorStop(0.3, `rgba(0,0,255,${core * 0.3})`);
+      g.addColorStop(0.15, `rgba(0,0,255,${core * 0.45})`);
+      g.addColorStop(0.5, `rgba(0,0,255,${core * 0.12})`);
       g.addColorStop(1, "rgba(0,0,255,0)");
       ctx.fillStyle = g;
       ctx.fillRect(-r, -r, r * 2, r * 2);
@@ -292,17 +295,19 @@ function bake(polygons: Polygon[]): CanvasTexture {
     }
   }
 
-  // Suburbs and satellite towns: specks scattered around each metro.
+  // Suburbs and satellite towns: specks scattered around each metro. Kept
+  // sparse and faint: with additive drawing, ~1,500 specks around a big
+  // metro saturated into a flat disc that read as an orange blob up close.
   for (const c of CITIES) {
-    const n = Math.round(40 + c.pop * 40);
+    const n = Math.round(30 + c.pop * 16);
     const sigma = 0.25 + Math.sqrt(c.pop) * 0.22;
     const stretch = 1 / Math.max(0.2, Math.cos((c.lat * Math.PI) / 180));
     for (let i = 0; i < n; i++) {
       const lat = c.lat + gauss() * sigma;
       const lon = c.lon + gauss() * sigma * stretch;
       if (!onLand(lon, lat)) continue;
-      ctx.fillStyle = `rgba(0,0,255,${0.14 + rand() * 0.34})`;
-      const s = 1 + rand() * 1.1;
+      ctx.fillStyle = `rgba(0,0,255,${0.1 + rand() * 0.26})`;
+      const s = 1 + rand() * 0.8;
       ctx.fillRect(px(lon), py(lat), s, s);
     }
   }

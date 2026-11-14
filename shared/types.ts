@@ -83,7 +83,7 @@ export interface Narration {
 }
 
 export type ServerMessage =
-  | { type: "hello"; serverTime: number; tickRate: number }
+  | { type: "hello"; serverTime: number; tickRate: number; /** running sources, e.g. ["wikipedia"] */ sources?: string[] }
   | { type: "event"; event: WeatherEvent }
   | { type: "pulse"; t: number }
   | { type: "narration"; narration: Narration };

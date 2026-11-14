@@ -8,7 +8,9 @@ sends shockwaves out from where it happened. The planet is the real Earth:
 real coastlines, real cities, and a day/night terminator that follows the
 actual sun.
 
-This is not a dashboard. It's a living planet.
+This is not a dashboard. It's a living planet. Signals are simulated by
+default; switch on the Wikipedia source and they are live edits from
+around the world.
 
 ---
 
@@ -32,6 +34,7 @@ same simulation and narrator locally, so the planet is never empty.
 | `npm run dev` | server + client with hot reload |
 | `npm run build` | type-checks and builds `client/dist` and `server/dist` |
 | `npm run typecheck` | type-checks client and server |
+| `npm test` | unit tests (Vitest): geo math, camera, ingestion, narration, local weather, the Wikipedia classifier |
 | `npm start -w server` | runs the built server (`server/dist/server/src/index.js`) |
 
 ## Controls
@@ -44,8 +47,9 @@ same simulation and narrator locally, so the planet is never empty.
 | Click empty globe | look at that spot |
 | Double-click | reset zoom |
 | Arrow keys, `+` / `-` | orbit and zoom from the keyboard |
-| `Esc` | release the lock, close the clip reel |
-| Ticker row | fly to that signal |
+| `Esc` | release the lock, close the clip reel or field guide |
+| Ticker row | fly to that signal (the list holds still while you point at it) |
+| `?` | open the field guide (what each kind of weather means) |
 
 The camera drifts back into its idle orbit after a few quiet seconds.
 
@@ -57,7 +61,10 @@ The camera drifts back into its idle orbit after a few quiet seconds.
 | `PORT` / `HOST` | server | `8787` / `0.0.0.0` | where the WebSocket server listens |
 | `ANTHROPIC_API_KEY` | server | unset | narrate with Claude instead of templates (also `npm i -w server @anthropic-ai/sdk`) |
 | `IW_NARRATOR_MODEL` | server | `claude-haiku-5-5` | model for the Claude narrator |
+| `IW_SOURCES` | server | `sim` | comma-separated sources: `sim`, `wikipedia` (live edits) |
+| `IW_USER_AGENT` | server | generic | User-Agent for the Wikipedia stream; Wikimedia asks for one with contact details |
 | `?q=low\|medium\|high\|ultra` | URL | auto | pin the quality tier (turns off adaptive quality) |
+| `?city=Tokyo` | URL | | open on that city and make it "your weather" |
 
 ## Architecture
 
@@ -102,6 +109,36 @@ shared/
 - **Sources are pluggable.** Real signals implement `EventSource`; the client
   routes by `kind`, not by source.
 
+## Your weather
+
+The card at the left of the globe (one line under the title on phones)
+reports what the internet is doing within 1,500 km of your city in the last
+minute: "Moderate meme swarms", building, easing or steady. The city comes
+from a `?city=` link, then your pick, then your browser's time zone, so
+there is no location prompt and nothing leaves the browser. "copy link"
+gives a URL that opens the globe on that city.
+
+## Live Wikipedia
+
+`IW_SOURCES=wikipedia npm run dev` feeds the globe from Wikimedia's public
+recent-changes stream (no key needed):
+
+| On Wikipedia | On the globe |
+|---|---|
+| new article, regular edit | build (city lights) |
+| a revert | controversy |
+| repeated reverts on one page, page blanked, editor blocked | rage storm |
+| a page edited 3 / 6 / 10 times in 10 minutes | trend / viral / news |
+| page protected | news shockwave |
+| a "thanks" between editors, a new editor signing up | wholesome aurora |
+
+Each wiki's language places its signals near the cities where it is spoken
+(Japanese near Tokyo and Osaka, Spanish across Spain and Latin America), and
+a hot page keeps landing on the same city. Usernames and page titles are
+never sent to the browser. A rate gate keeps it to a few signals a second;
+routine edits are sampled so the rarer signals stay visible. Wikipedia has
+no memes, so meme swarms only appear in the simulation.
+
 ## Adding real sources
 
 Implement `server/src/sources/source.ts`:
@@ -114,7 +151,9 @@ export const githubSource: EventSource = {
 };
 ```
 
-Register it in `server/src/pipeline/eventPipeline.ts`. The client needs no
+Add it to the registry in `server/src/pipeline/eventPipeline.ts` and name it
+in `IW_SOURCES`. `server/src/sources/wikimediaSource.ts` is a full example
+(streaming, reconnects, rate limit). The client needs no
 changes. Incoming events are validated on ingest (unknown kinds, bad
 coordinates and duplicate ids are dropped), so a misbehaving source can't
 crash the renderer.

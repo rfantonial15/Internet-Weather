@@ -28,6 +28,8 @@ export function HUD() {
   const fps = useUIStore((s) => s.fps);
   const connected = useUIStore((s) => s.connected);
   const quality = useUIStore((s) => s.quality);
+  const feed = useUIStore((s) => s.feed);
+  const realFeed = feed.filter((f) => f !== "sim");
 
   return (
     <motion.div
@@ -57,7 +59,7 @@ export function HUD() {
         <Chrono />
         <div className="flex flex-col items-end gap-1">
           <span className="hud-label" role="status">
-            {connected ? "uplink · live" : "uplink · simulated"}
+            {!connected ? "uplink · simulated" : realFeed.length ? `uplink · live · ${realFeed.join(" + ")}` : "uplink · live · simulated"}
           </span>
           <span className="hud-label hud-label--faint">
             q.{quality} · {String(fps).padStart(2, "0")}fps

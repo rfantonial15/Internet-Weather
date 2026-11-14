@@ -36,8 +36,13 @@ void main() {
   float pulse = wave * wave * wave;
 
   float energy = lights * shimmer * (1.0 + pulse * 0.9 + uBuildPulse * 1.6);
+  // Soft ceiling. The target is a half-float buffer, so nothing clamps, and
+  // additive blending squares the value (rgb * alpha): dense metro cores
+  // reached 6-7x white and bloomed into flat orange blobs. 1 - exp(-x)
+  // keeps faint lights linear and rolls the bright ones off smoothly.
+  float e = 1.0 - exp(-energy * 1.4);
   float heat = clamp(pulse * 0.45 + uBuildPulse * 0.6, 0.0, 1.0);
-  vec3 col = mix(uWarm, uHot, heat * 0.5) * energy;
+  vec3 col = mix(uWarm, uHot, heat * 0.5) * e * 1.25;
 
-  gl_FragColor = vec4(col * night, clamp(energy * night, 0.0, 1.0));
+  gl_FragColor = vec4(col * night, e * night);
 }
