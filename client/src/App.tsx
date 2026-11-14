@@ -7,6 +7,7 @@ import { NarrationOverlay } from "@/ui/NarrationOverlay";
 import { BootSequence } from "@/ui/BootSequence";
 import { CinematicOverlay } from "@/ui/CinematicOverlay";
 import { ClipGallery } from "@/ui/ClipGallery";
+import { ContextLostNotice } from "@/ui/ContextLostNotice";
 import { useRealtime } from "@/hooks/useRealtime";
 import { useUIStore } from "@/state/useUIStore";
 import { initCaptureDirector } from "@/cinematic/captureDirector";
@@ -68,6 +69,7 @@ export default function App() {
         <NarrationOverlay />
         <CinematicOverlay />
         <ClipGallery />
+        <ContextLostNotice />
         {!booted && <BootSequence />}
       </div>
     </MotionConfig>

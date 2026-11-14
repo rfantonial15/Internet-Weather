@@ -9,7 +9,10 @@ interface UIState {
   /** True when `?q=low|medium|high|ultra` pinned the tier (adaptation off). */
   qualityPinned: boolean;
   fps: number;
+  /** True while the WebGL context is lost (GPU reset, tab backgrounded on mobile). */
+  glLost: boolean;
   finishBoot(): void;
+  setGlLost(v: boolean): void;
   setConnected(v: boolean): void;
   setQuality(q: QualityTier): void;
   setFps(f: number): void;
@@ -29,7 +32,9 @@ export const useUIStore = create<UIState>((set) => ({
   quality: pinned ?? detectTier(),
   qualityPinned: pinned !== null,
   fps: 60,
+  glLost: false,
   finishBoot: () => set({ booted: true }),
+  setGlLost: (v) => set({ glLost: v }),
   setConnected: (v) => set({ connected: v }),
   setQuality: (q) => set({ quality: q }),
   setFps: (f) => set((s) => (s.fps === f ? s : { fps: f })),

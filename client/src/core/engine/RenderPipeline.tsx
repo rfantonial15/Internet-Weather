@@ -51,6 +51,17 @@ export function RenderPipeline({ children }: Props) {
         gl.toneMapping = NoToneMapping;
         gl.outputColorSpace = SRGBColorSpace;
         registerSourceCanvas(gl.domElement);
+        // three calls preventDefault on loss and rebuilds GPU state on
+        // restore; we only surface the state so the UI can explain it.
+        const ui = useUIStore.getState();
+        gl.domElement.addEventListener("webglcontextlost", () => {
+          console.warn("[render] WebGL context lost");
+          ui.setGlLost(true);
+        });
+        gl.domElement.addEventListener("webglcontextrestored", () => {
+          console.info("[render] WebGL context restored");
+          ui.setGlLost(false);
+        });
       }}
       camera={{
         fov: CAMERA.baseFov,
