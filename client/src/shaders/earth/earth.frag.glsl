@@ -55,6 +55,11 @@ void main() {
   vec3 dayCol = mix(ocean, landCol, land) * lambert;
   dayCol += uRim * shore * 0.10;
 
+  // Sunrise/sunset: warm the lit surface near the terminator (a tint, not a
+  // glowing stripe, so close-ups don't get an orange band across them).
+  float dusk = smoothstep(0.38, 0.0, ndl) * smoothstep(-0.06, 0.04, ndl);
+  dayCol *= mix(vec3(1.0), vec3(1.25, 0.86, 0.66), dusk * 0.75);
+
   // Sun glint on open water (Blinn-Phong half vector).
   vec3 H = normalize(S + V);
   float glint = pow(max(dot(N, H), 0.0), 140.0) * (1.0 - land);
@@ -68,9 +73,9 @@ void main() {
   float fres = pow(1.0 - max(dot(N, V), 0.0), 3.0);
   vec3 rim = uRim * fres * (0.55 + 0.5 * uTension);
 
-  // Terminator: a narrow warm sliver on the sunrise/sunset edge.
-  float term = exp(-pow((ndl - 0.02) * 18.0, 2.0));
-  vec3 terminator = uTerminatorWarm * term * 0.11;
+  // A faint warm trace right on the line itself.
+  float term = exp(-pow((ndl - 0.01) * 22.0, 2.0));
+  vec3 terminator = uTerminatorWarm * term * 0.035;
 
   gl_FragColor = vec4(surface + rim + terminator, 1.0);
 }

@@ -2,6 +2,7 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { useUIStore } from "@/state/useUIStore";
 import { higherTier, lowerTier, TIER_ORDER } from "@/config/quality";
+import { activeRecorder } from "@/cinematic/clipRecorder";
 
 /**
  * FPS readout + adaptive quality.
@@ -62,6 +63,14 @@ export function PerformanceProbe() {
 
     const ui = useUIStore.getState();
     if (ui.qualityPinned) return;
+    // A recording renders at a raised pixel ratio on purpose; don't judge the
+    // device by it, and start a fresh window afterwards.
+    if (activeRecorder()) {
+      adapt.current.frames = 0;
+      adapt.current.time = 0;
+      adapt.current.warmup = WARMUP_S;
+      return;
+    }
 
     const a = adapt.current;
     if (a.warmup > 0) {

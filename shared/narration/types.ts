@@ -1,4 +1,4 @@
-import type { PhenomenonKind } from "@iw/shared";
+import type { PhenomenonKind } from "../types.js";
 
 /**
  * A high-level pattern detected from a sliding window of events. This is the

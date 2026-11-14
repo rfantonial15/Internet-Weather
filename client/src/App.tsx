@@ -48,26 +48,28 @@ export default function App() {
   }, [booted]);
 
   return (
+    // reducedMotion="user": every framer-motion animation honours the OS
+    // "reduce motion" setting.
     <MotionConfig reducedMotion="user">
-    <div className="relative h-full w-full bg-ink-900">
-      <RenderPipeline>
-        <Suspense fallback={null}>
-          <WorldScene />
-        </Suspense>
-      </RenderPipeline>
+      <div className="relative h-full w-full bg-ink-900">
+        <RenderPipeline>
+          <Suspense fallback={null}>
+            <WorldScene />
+          </Suspense>
+        </RenderPipeline>
 
-      {/* Ambient hud grid — very faint, masked toward the centre. Sits below
-          the HUD but above the canvas, so it reads as an optical filter. */}
-      <div className="pointer-events-none absolute inset-0 z-0">
-        <div className="absolute inset-0 hud-grid opacity-[0.10]" />
+        {/* Ambient hud grid: very faint, masked toward the centre. Sits below
+            the HUD but above the canvas, so it reads as an optical filter. */}
+        <div className="pointer-events-none absolute inset-0 z-0">
+          <div className="absolute inset-0 hud-grid opacity-[0.10]" />
+        </div>
+
+        <HUD />
+        <NarrationOverlay />
+        <CinematicOverlay />
+        <ClipGallery />
+        {!booted && <BootSequence />}
       </div>
-
-      <HUD />
-      <NarrationOverlay />
-      <CinematicOverlay />
-      <ClipGallery />
-      {!booted && <BootSequence />}
-    </div>
     </MotionConfig>
   );
 }

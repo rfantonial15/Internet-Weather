@@ -1,4 +1,4 @@
-import type { EventKind, WeatherEvent } from "@iw/shared";
+import type { EventKind, WeatherEvent } from "../types.js";
 import type { Phenomenon } from "./types.js";
 import { regionForGeo, centroid } from "./regions.js";
 

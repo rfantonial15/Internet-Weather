@@ -11,3 +11,6 @@ client/dist/
 server/dist/
 .cache/
 .vite/
+
+# Local Claude Code settings (machine-specific permissions)
+.claude/settings.local.json

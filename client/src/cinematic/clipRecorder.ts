@@ -65,6 +65,22 @@ const PAPER_FAINT = "rgba(196, 212, 234, 0.46)";
 /** The recorder currently fed by CaptureFrameTap, if any. */
 let active: ClipRecorder | null = null;
 
+/** Highest pixel ratio a recording may render at. */
+const MAX_CAPTURE_DPR = 2;
+
+interface RenderControl {
+  cssSize(): { width: number; height: number };
+  dpr(): number;
+  setDpr(dpr: number): void;
+}
+
+let renderControl: RenderControl | null = null;
+
+/** CaptureFrameTap lends the recorder control of the canvas pixel ratio. */
+export function registerRenderControl(c: RenderControl | null) {
+  renderControl = c;
+}
+
 export function activeRecorder(): ClipRecorder | null {
   return active;
 }
@@ -82,6 +98,8 @@ export class ClipRecorder {
   private out: HTMLCanvasElement | null = null;
   private ctx: CanvasRenderingContext2D | null = null;
   private stopping: Promise<RecorderResult> | null = null;
+  /** Pixel ratio to restore when the recording ends (null: untouched). */
+  private restoreDpr: number | null = null;
 
   constructor(public readonly aspect: AspectKey) {
     const mime = pickMime();
@@ -102,9 +120,25 @@ export class ClipRecorder {
     const preset = ASPECT_PRESETS[this.aspect];
     const aspect = preset.w / preset.h;
 
-    // Crop rect from the current source size, then cap at the preset size.
-    const sw = source.width;
-    const sh = source.height;
+    // Size the crop in CSS pixels, then render sharper for the recording if
+    // the live pixel ratio can't fill the preset (up to MAX_CAPTURE_DPR).
+    // The canvas resizes on the next frame; drawFrame recomputes the crop
+    // every frame, so the first frame or two are just slightly soft.
+    let sw = source.width;
+    let sh = source.height;
+    if (renderControl) {
+      const css = renderControl.cssSize();
+      const current = renderControl.dpr();
+      const cropCssW = css.width / css.height > aspect ? css.height * aspect : css.width;
+      const wanted = Math.min(MAX_CAPTURE_DPR, Math.max(current, preset.w / cropCssW));
+      if (wanted > current + 0.05) {
+        this.restoreDpr = current;
+        renderControl.setDpr(wanted);
+      }
+      const dpr = Math.max(current, wanted);
+      sw = Math.round(css.width * dpr);
+      sh = Math.round(css.height * dpr);
+    }
     const cropW = sw / sh > aspect ? sh * aspect : sw;
     const cropH = cropW / aspect;
     const scale = Math.min(1, preset.w / cropW);
@@ -164,6 +198,10 @@ export class ClipRecorder {
     const rec = this.rec;
     if (!rec) return Promise.reject(new Error("recorder not started"));
     if (active === this) active = null;
+    if (this.restoreDpr !== null && renderControl) {
+      renderControl.setDpr(this.restoreDpr);
+      this.restoreDpr = null;
+    }
 
     this.stopping = new Promise<RecorderResult>((resolve) => {
       let done = false;

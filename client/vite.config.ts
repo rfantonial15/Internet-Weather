@@ -23,6 +23,22 @@ export default defineConfig({
   },
   build: {
     target: "es2022",
-    sourcemap: true,
+    // Maps are generated for debugging but not referenced from the bundle.
+    sourcemap: "hidden",
+    // three.js alone is ~600 kB minified; split vendors so they download in
+    // parallel and stay cached across app deploys.
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        // Only split libraries that don't import React: React-dependent
+        // vendors in their own chunks form import cycles with the entry
+        // chunk and can evaluate before React exists.
+        manualChunks(id) {
+          if (/node_modules[\/]three[\/]/.test(id)) return "three";
+          if (/node_modules[\/]postprocessing[\/]/.test(id)) return "postfx";
+          return undefined;
+        },
+      },
+    },
   },
 });

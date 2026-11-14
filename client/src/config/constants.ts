@@ -40,12 +40,24 @@ export const EVENTS = {
   rippleScale: 0.12,
 } as const;
 
+/**
+ * WebSocket endpoint. `VITE_WS_URL` overrides it at build time; set it to an
+ * empty string for a static deploy with no server (the app then runs on its
+ * local simulation and narrator without trying to connect). Default: same
+ * host over wss on https, or port 8787 on plain http (local dev).
+ */
+const envWs = import.meta.env.VITE_WS_URL as string | undefined;
+
 export const REALTIME = {
   endpoint:
-    typeof window !== "undefined" && window.location.protocol === "https:"
-      ? `wss://${window.location.host}/ws`
-      : `ws://${
-          typeof window !== "undefined" ? window.location.hostname : "localhost"
-        }:8787/ws`,
+    envWs !== undefined
+      ? envWs
+      : typeof window === "undefined"
+        ? ""
+        : window.location.protocol === "https:"
+          ? `wss://${window.location.host}/ws`
+          : `ws://${window.location.hostname}:8787/ws`,
+  /** First reconnect delay; doubles per failure up to maxReconnectMs. */
   reconnectMs: 1500,
+  maxReconnectMs: 30000,
 } as const;
