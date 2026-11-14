@@ -1,4 +1,5 @@
 #include ../shared/geo.glsl;
+#include ../shared/noise.glsl;
 
 uniform float uTime;
 uniform vec3 uSunDir;
@@ -27,6 +28,16 @@ void main() {
   if (raw < 0.004) discard;
   // Lift faint countryside specks without blowing out the metro cores.
   float lights = pow(raw, 0.7);
+
+  // Close-up detail: the 2048 px map turns a metro into one soft patch
+  // when zoomed in, so break it into clusters of light. Faded out once a
+  // noise cell is smaller than a pixel, where it would only shimmer.
+  vec3 q = N * 150.0; // ~40 km cells
+  float detail = 1.0 - smoothstep(0.2, 0.45, length(fwidth(q)));
+  if (detail > 0.0) {
+    float n = snoise(q) * 0.6 + snoise(q * 2.3) * 0.4;
+    lights *= mix(1.0, 0.2 + smoothstep(-0.15, 0.55, n) * 1.15, detail);
+  }
 
   float shimmer = 0.82 + 0.18 * sin(uTime * 1.3 + dot(N, vec3(41.3, 77.1, 23.9)));
 
