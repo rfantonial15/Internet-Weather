@@ -1,10 +1,23 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import glsl from "vite-plugin-glsl";
 import path from "node:path";
 
+/**
+ * Share-card URLs must be absolute for most link previews. Set VITE_SITE_URL
+ * (e.g. https://weather.example.com) when building for a public host; left
+ * unset, the image path stays relative.
+ */
+function siteUrl(): Plugin {
+  const base = (process.env.VITE_SITE_URL ?? "").replace(/\/+$/, "");
+  return {
+    name: "iw-site-url",
+    transformIndexHtml: (html) => html.replaceAll("__SITE_URL__", base),
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), glsl({ compress: false })],
+  plugins: [react(), glsl({ compress: false }), siteUrl()],
   resolve: {
     alias: [
       { find: /^@\//, replacement: path.resolve(__dirname, "src") + "/" },

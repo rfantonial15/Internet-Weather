@@ -6,6 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#05070d" />
     <title>Internet Weather</title>
+    <meta name="description" content="The internet as weather over the real Earth: rage storms, meme swarms, build lights and news shockwaves, live on a 3D globe." />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Internet Weather" />
+    <meta property="og:description" content="The internet as weather over the real Earth." />
+    <meta property="og:image" content="__SITE_URL__/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="A night-and-day globe with glowing signals over the Americas, titled Internet Weather." />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -15,6 +25,11 @@
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <p style="font-family: system-ui, sans-serif; color: #e8f0fc; padding: 24px">
+        Internet Weather is a live 3D globe and needs JavaScript and WebGL.
+      </p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

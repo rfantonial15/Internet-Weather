@@ -58,6 +58,7 @@ The camera drifts back into its idle orbit after a few quiet seconds.
 | Variable | Where | Default | Purpose |
 |---|---|---|---|
 | `VITE_WS_URL` | client build | same host (`wss://host/ws`) on https, `ws://host:8787/ws` on http | WebSocket endpoint. Set to an empty string for a static deploy with no server. |
+| `VITE_SITE_URL` | client build | unset | public origin (e.g. `https://weather.example.com`) so link previews get an absolute image URL |
 | `PORT` / `HOST` | server | `8787` / `0.0.0.0` | where the WebSocket server listens |
 | `ANTHROPIC_API_KEY` | server | unset | narrate with Claude instead of templates (also `npm i -w server @anthropic-ai/sdk`) |
 | `IW_NARRATOR_MODEL` | server | `claude-haiku-5-5` | model for the Claude narrator |
