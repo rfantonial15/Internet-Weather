@@ -24,7 +24,22 @@ export const frameUniforms = {
    * a true world size at any resolution, DPR or FOV.
    */
   uPointScale: { value: 1000 },
+  /**
+   * 0.35..1 size factor for surface markers (rings, dots, beams, heat discs,
+   * pillars). Shrinks as the camera closes in so a marker keeps roughly the
+   * same on-screen size instead of filling a phone screen at full zoom.
+   */
+  uMarkerScale: { value: 1 },
 };
+
+/** Camera altitude (above the surface) at which markers are full size. */
+const MARKER_FULL_ALTITUDE = 3.0;
+
+/** Marker size factor for a camera at `distance` from the globe centre. */
+export function markerScaleFor(distance: number): number {
+  const s = (distance - 1) / MARKER_FULL_ALTITUDE;
+  return s < 0.35 ? 0.35 : s > 1 ? 1 : s;
+}
 
 export type FrameUniforms = typeof frameUniforms;
 

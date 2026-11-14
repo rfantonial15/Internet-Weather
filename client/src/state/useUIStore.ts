@@ -11,6 +11,12 @@ interface UIState {
   fps: number;
   /** True while the WebGL context is lost (GPU reset, tab backgrounded on mobile). */
   glLost: boolean;
+  /** Sources the connected server runs (from its hello), e.g. ["wikipedia"]. */
+  feed: string[];
+  setFeed(f: string[]): void;
+  /** Field guide (legend) panel open. */
+  guideOpen: boolean;
+  setGuideOpen(v: boolean): void;
   finishBoot(): void;
   setGlLost(v: boolean): void;
   setConnected(v: boolean): void;
@@ -33,6 +39,10 @@ export const useUIStore = create<UIState>((set) => ({
   qualityPinned: pinned !== null,
   fps: 60,
   glLost: false,
+  guideOpen: false,
+  feed: [],
+  setFeed: (f) => set({ feed: f }),
+  setGuideOpen: (v) => set({ guideOpen: v }),
   finishBoot: () => set({ booted: true }),
   setGlLost: (v) => set({ glLost: v }),
   setConnected: (v) => set({ connected: v }),

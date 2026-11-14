@@ -6,6 +6,8 @@ import { Reticle } from "./Reticle";
 import { TensionMeter } from "./TensionMeter";
 import { Chrono } from "./components/Chrono";
 import { CoordReadout } from "./components/CoordReadout";
+import { LocalWeatherCard, LocalWeatherLine } from "./LocalWeather";
+import { FieldGuideButton } from "./FieldGuide";
 
 /**
  * The HUD layer. Layout principles:
@@ -26,6 +28,8 @@ export function HUD() {
   const fps = useUIStore((s) => s.fps);
   const connected = useUIStore((s) => s.connected);
   const quality = useUIStore((s) => s.quality);
+  const feed = useUIStore((s) => s.feed);
+  const realFeed = feed.filter((f) => f !== "sim");
 
   return (
     <motion.div
@@ -43,7 +47,11 @@ export function HUD() {
           <h1 className="hud-label hud-label--strong">Internet Weather</h1>
         </div>
         <span className="hud-label hud-label--mute">obs · planetary uplink</span>
-        <span className="hud-label hud-label--faint hidden sm:block">spec · v.0.2.0</span>
+        <span className="hud-label hud-label--faint hidden sm:block">spec · v.0.3.0</span>
+        <div className="mt-1.5 flex flex-col gap-1.5">
+          <LocalWeatherLine />
+          <FieldGuideButton />
+        </div>
       </div>
 
       {/* Top-right: chrono + status */}
@@ -51,7 +59,7 @@ export function HUD() {
         <Chrono />
         <div className="flex flex-col items-end gap-1">
           <span className="hud-label" role="status">
-            {connected ? "uplink · live" : "uplink · simulated"}
+            {!connected ? "uplink · simulated" : realFeed.length ? `uplink · live · ${realFeed.join(" + ")}` : "uplink · live · simulated"}
           </span>
           <span className="hud-label hud-label--faint">
             q.{quality} · {String(fps).padStart(2, "0")}fps
@@ -61,6 +69,7 @@ export function HUD() {
       </div>
 
       <Reticle />
+      <LocalWeatherCard />
       <CoordReadout />
       <TensionMeter />
 

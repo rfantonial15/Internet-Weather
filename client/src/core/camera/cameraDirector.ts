@@ -5,6 +5,8 @@ import { clamp, damp } from "@/utils/easing";
 const TAU = Math.PI * 2;
 const PITCH_LIMIT = 1.25;
 const BASE_PITCH = 0.18;
+/** Closest zoom as a fraction of the distance that frames the globe. */
+const MIN_ZOOM_OF_FIT = 0.36;
 
 /** Wrap an angle to (-pi, pi]. */
 function wrapPi(a: number): number {
@@ -95,8 +97,18 @@ export class CameraDirector {
     this.targetPitch = clamp(this.targetPitch + dPitch, -PITCH_LIMIT, PITCH_LIMIT);
   }
 
+  /**
+   * Closest allowed distance. Relative to the framing distance, because a
+   * tall phone sees a much narrower slice than a desktop at the same
+   * distance: a fixed minimum let phones zoom in to a blurry patch a few
+   * hundred km across, past what the 2048 px earth map can show.
+   */
+  get minDistance(): number {
+    return Math.max(CAMERA.minDistance, this.fitDist * MIN_ZOOM_OF_FIT);
+  }
+
   zoomBy(factor: number) {
-    this.userDist = clamp(this.userDist * factor, CAMERA.minDistance, CAMERA.maxDistance);
+    this.userDist = clamp(this.userDist * factor, this.minDistance, CAMERA.maxDistance);
     this.targetDist = this.userDist;
   }
 
@@ -145,7 +157,7 @@ export class CameraDirector {
     const sph = new Spherical().setFromVector3(target);
     this.targetYaw = this.yaw + wrapPi(sph.theta - this.yaw);
     this.targetPitch = clamp(Math.PI / 2 - sph.phi, -PITCH_LIMIT, PITCH_LIMIT);
-    this.targetDist = clamp(distance, CAMERA.minDistance, CAMERA.maxDistance);
+    this.targetDist = clamp(distance, this.minDistance, CAMERA.maxDistance);
     this.targetFov = CAMERA.baseFov;
   }
 

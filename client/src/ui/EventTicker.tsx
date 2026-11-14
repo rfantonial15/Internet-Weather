@@ -1,11 +1,13 @@
-import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 import type { WeatherEvent } from "@iw/shared";
 import { useEventStore } from "@/state/useEventStore";
 import { useCameraStore } from "@/state/useCameraStore";
 import { eventColor } from "@/config/colors";
 import { Glyph } from "./components/Glyph";
 import { HoloFrame } from "./components/HoloFrame";
+
+const EASE = [0.22, 1, 0.36, 1] as const;
 
 /** Rows shown: six on wider screens, four on phones. */
 function useRowCount(): number {
@@ -31,32 +33,76 @@ function useRowCount(): number {
 export function EventTicker() {
   const rows = useRowCount();
   // zustand v4 memoizes on the state snapshot, so slicing here is safe.
-  const events = useEventStore((s) => s.events.slice(-rows));
+  const live = useEventStore((s) => s.events.slice(-rows));
   const selectedId = useCameraStore((s) => s.selected?.id ?? null);
+
+  // Rows arrive about every 0.7 s, so a row would slide away just as it is
+  // clicked or tapped. While the pointer is over the list, or a row has
+  // keyboard focus, the list holds still. Touch lets go a little later: a
+  // tap's pointerleave comes before its click.
+  const liveRef = useRef(live);
+  liveRef.current = live;
+  const [held, setHeld] = useState<WeatherEvent[] | null>(null);
+  const why = useRef({ hover: false, focus: false });
+  const timer = useRef<number | undefined>(undefined);
+  const sync = (releaseMs: number) => {
+    window.clearTimeout(timer.current);
+    if (why.current.hover || why.current.focus) {
+      setHeld((h) => h ?? liveRef.current);
+    } else {
+      timer.current = window.setTimeout(() => setHeld(null), releaseMs);
+    }
+  };
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  const events = (held ?? live).slice(-rows);
 
   return (
     <HoloFrame className="relative px-3 py-3 sm:px-5" edges>
       <div className="hud-label hud-label--mute mb-2 flex items-center gap-2">
         <span aria-hidden className="h-1 w-1 rounded-full bg-accent-dim" />
         live signals
+        {held && <span className="text-white/45">· paused</span>}
       </div>
-      <ul className="pointer-events-auto relative space-y-[2px]" aria-label="Recent signals">
-        {/* popLayout: leaving rows are lifted out of flow so the frame keeps a
-            constant height instead of growing while they fade. */}
-        <AnimatePresence initial={false} mode="popLayout">
-          {events.map((e) => (
-            <motion.li
-              key={e.id}
-              layout="position"
-              initial={{ opacity: 0, x: -6 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 6 }}
-              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <Row e={e} selected={e.id === selectedId} />
-            </motion.li>
-          ))}
-        </AnimatePresence>
+      <ul
+        className="pointer-events-auto relative space-y-[2px]"
+        aria-label="Recent signals"
+        onPointerEnter={() => {
+          why.current.hover = true;
+          sync(0);
+        }}
+        onPointerDown={() => {
+          why.current.hover = true;
+          sync(0);
+        }}
+        onPointerLeave={(ev) => {
+          why.current.hover = false;
+          sync(ev.pointerType === "mouse" ? 300 : 2500);
+        }}
+        onFocus={() => {
+          why.current.focus = true;
+          sync(0);
+        }}
+        onBlur={(ev) => {
+          if (ev.currentTarget.contains(ev.relatedTarget as Node | null)) return;
+          why.current.focus = false;
+          sync(300);
+        }}
+      >
+        {/* Terminal-style log: rows step up a line at once and only the
+            arriving row fades in. Sliding rows (layout animation) either
+            drew leaving rows over arriving ones or, with no exit fade, left
+            the list half empty for a moment when a burst replaced several
+            rows at once. */}
+        {events.map((e) => (
+          <motion.li
+            key={e.id}
+            initial={{ opacity: 0, x: -6 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.35, ease: EASE }}
+          >
+            <Row e={e} selected={e.id === selectedId} />
+          </motion.li>
+        ))}
       </ul>
     </HoloFrame>
   );

@@ -28,7 +28,7 @@ export const TEMPLATES: Record<PhenomenonKind, Partial<Record<NarrationTone, str
       "Disagreement is gathering shape over {region}.",
     ],
     electric: [
-      "Conflict signals are surging — {pct}% above baseline.",
+      "Conflict signals are surging, {pct}% above baseline.",
       "Friction across {region} is accelerating sharply.",
     ],
     observational: [
@@ -48,11 +48,13 @@ export const TEMPLATES: Record<PhenomenonKind, Partial<Record<NarrationTone, str
       "A wave of frustration is moving through {region}.",
     ],
     electric: [
-      "Anger is propagating quickly — {pct}% above baseline.",
+      "Anger is propagating quickly, {pct}% above baseline.",
       "A surge of outrage is sweeping {region}.",
     ],
     observational: [
       "Frustration is gathering in {region}.",
+      "Tempers are running short across {region}.",
+      "A pocket of irritation is building over {region}.",
     ],
   },
 
@@ -64,7 +66,7 @@ export const TEMPLATES: Record<PhenomenonKind, Partial<Record<NarrationTone, str
     ],
     awed: [
       "A viral wave is crossing continents in real time.",
-      "Watch carefully — something is spreading.",
+      "Watch carefully. Something is spreading.",
     ],
     observational: [
       "Viral activity is spreading from {region}.",
@@ -78,7 +80,7 @@ export const TEMPLATES: Record<PhenomenonKind, Partial<Record<NarrationTone, str
   meme_migration: {
     observational: [
       "A meme migration is underway, drifting across {region}.",
-      "Cultural drift detected — {count} new vectors emerging.",
+      "Cultural drift detected: {count} new vectors emerging.",
       "Meme propagation velocity has increased by {pct}%.",
       "A flock of references is migrating from {region}.",
     ],
@@ -87,7 +89,7 @@ export const TEMPLATES: Record<PhenomenonKind, Partial<Record<NarrationTone, str
       "A wave of in-jokes is finding new ground.",
     ],
     electric: [
-      "Memetic activity is surging — {pct}% above baseline.",
+      "Memetic activity is surging, {pct}% above baseline.",
       "A meme cascade is propagating rapidly.",
     ],
     contemplative: [
@@ -99,8 +101,8 @@ export const TEMPLATES: Record<PhenomenonKind, Partial<Record<NarrationTone, str
     observational: [
       "A build wave is rolling across {region}. Sustained activity.",
       "A migration toward open-source tooling has accelerated.",
-      "Construction signals are converging — {count} active sites.",
-      "Engineering activity is climbing — {pct}% above baseline.",
+      "Construction signals are converging across {count} active sites.",
+      "Engineering activity is climbing, {pct}% above baseline.",
       "The substrate is being rebuilt. {count} active sites.",
     ],
     contemplative: [
@@ -147,7 +149,7 @@ export const TEMPLATES: Record<PhenomenonKind, Partial<Record<NarrationTone, str
       "A new trend line has appeared over {region}.",
     ],
     electric: [
-      "Topical pressure is climbing — {pct}% above baseline.",
+      "Topical pressure is climbing, {pct}% above baseline.",
       "A trend is accelerating across {region}.",
     ],
     contemplative: [

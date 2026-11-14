@@ -23,6 +23,15 @@ export function nearestCity(p: GeoPoint): City & { km: number } {
   return { ...best, km: Math.acos(Math.max(-1, Math.min(1, bestCos))) * EARTH_KM };
 }
 
+/** Great-circle distance in km. */
+export function kmBetween(a: GeoPoint, b: GeoPoint): number {
+  const lat1 = a.lat * RAD;
+  const lat2 = b.lat * RAD;
+  const cos =
+    Math.sin(lat1) * Math.sin(lat2) + Math.cos(lat1) * Math.cos(lat2) * Math.cos((a.lon - b.lon) * RAD);
+  return Math.acos(Math.max(-1, Math.min(1, cos))) * EARTH_KM;
+}
+
 /** "near Lima", or "1,400 km from Lima" when the nearest metro is far. */
 export function placeLabel(p: GeoPoint): string {
   const c = nearestCity(p);

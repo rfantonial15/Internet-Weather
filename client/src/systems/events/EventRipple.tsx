@@ -15,6 +15,7 @@ import { eventAge, eventUnit } from "./eventGeo";
 import { EARTH_RADIUS, EVENTS } from "@/config/constants";
 import { useEventStore } from "@/state/useEventStore";
 import { easeOutCubic } from "@/utils/easing";
+import { frameUniforms } from "@/core/frameUniforms";
 
 /** Ring geometry lies in XY; its normal is +Z. */
 const NORMAL = new Vector3(0, 0, 1);
@@ -52,6 +53,7 @@ export function EventRipple() {
     if (!mesh) return;
     const events = useEventStore.getState().events;
     const now = Date.now();
+    const zoom = frameUniforms.uMarkerScale.value;
 
     let i = 0;
     for (const e of events) {
@@ -64,7 +66,7 @@ export function EventRipple() {
 
       dummy.position.copy(unit).multiplyScalar(EARTH_RADIUS * 1.002);
       dummy.quaternion.setFromUnitVectors(NORMAL, unit);
-      const r = 0.004 + easeOutCubic(age) * (0.04 + e.intensity * EVENTS.rippleScale);
+      const r = (0.004 + easeOutCubic(age) * (0.04 + e.intensity * EVENTS.rippleScale)) * zoom;
       dummy.scale.set(r, r, r);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);

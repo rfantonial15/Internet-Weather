@@ -1,7 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { PerspectiveCamera } from "three";
-import { frameUniforms, updateSunDirection } from "@/core/frameUniforms";
+import { frameUniforms, markerScaleFor, updateSunDirection } from "@/core/frameUniforms";
 import { earthMapReady } from "@/systems/globe/earthMap";
 import { weather } from "@/simulation/WeatherSystem";
 
@@ -12,6 +12,7 @@ import { weather } from "@/simulation/WeatherSystem";
  *   uSunDir     real subsolar point, refreshed once a second
  *   uTension    the weather simulation's smoothed tension
  *   uPointScale world-to-pixel factor for point sprites (tracks size, DPR, FOV)
+ *   uMarkerScale surface-marker size factor from the camera's altitude
  *
  * Nothing here touches React state, so this never causes a re-render.
  */
@@ -35,6 +36,7 @@ export function WorldClock() {
     u.uTension.value = weather.tension();
 
     const cam = state.camera;
+    u.uMarkerScale.value = markerScaleFor(cam.position.length());
     if (cam instanceof PerspectiveCamera) {
       const h = state.size.height * state.viewport.dpr;
       u.uPointScale.value = h / (2 * Math.tan((cam.fov * Math.PI) / 360));

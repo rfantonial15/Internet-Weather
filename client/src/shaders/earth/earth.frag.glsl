@@ -12,7 +12,6 @@ uniform vec3 uLandNight;
 uniform vec3 uLandDay;
 uniform vec3 uIce;
 uniform vec3 uRim;
-uniform vec3 uTerminatorWarm;
 
 varying vec3 vNormalW;
 varying vec3 vViewDir;
@@ -22,7 +21,7 @@ varying vec3 vViewDir;
  * the shader only adds lighting and a single octave of fine grain.
  *
  * Lighting reads like an orbital photo graded for night: lit hemisphere
- * from the real subsolar point, ocean glint, a warm sliver at the
+ * from the real subsolar point, ocean glint, a warm dusk tint near the
  * terminator, a cool fresnel rim against space.
  */
 void main() {
@@ -73,9 +72,8 @@ void main() {
   float fres = pow(1.0 - max(dot(N, V), 0.0), 3.0);
   vec3 rim = uRim * fres * (0.55 + 0.5 * uTension);
 
-  // A faint warm trace right on the line itself.
-  float term = exp(-pow((ndl - 0.01) * 22.0, 2.0));
-  vec3 terminator = uTerminatorWarm * term * 0.035;
-
-  gl_FragColor = vec4(surface + rim + terminator, 1.0);
+  // No additive line on the terminator: output is sRGB-encoded, so even a
+  // 0.035 linear add reads as a ~20% bright orange stripe over the dark
+  // night ocean. The dusk tint above carries sunrise and sunset.
+  gl_FragColor = vec4(surface + rim, 1.0);
 }

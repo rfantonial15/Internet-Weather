@@ -33,7 +33,6 @@ export function Globe() {
           uLandDay: { value: new Color(palette.landDay) },
           uIce: { value: new Color(palette.ice) },
           uRim: { value: new Color(palette.rim) },
-          uTerminatorWarm: { value: new Color(palette.terminator) },
         },
       }),
     [],
