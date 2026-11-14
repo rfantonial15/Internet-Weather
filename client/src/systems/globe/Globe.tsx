@@ -1,52 +1,48 @@
-import { useMemo, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
-import { Mesh, ShaderMaterial, Color } from "three";
+import { useEffect, useMemo } from "react";
+import { ShaderMaterial, Color } from "three";
 import vert from "@/shaders/earth/earth.vert.glsl";
 import frag from "@/shaders/earth/earth.frag.glsl";
 import { palette } from "@/config/colors";
 import { EARTH_RADIUS } from "@/config/constants";
-import { useWorldStore } from "@/state/useWorldStore";
+import { frameUniforms } from "@/core/frameUniforms";
 import { useUIStore } from "@/state/useUIStore";
 import { profiles } from "@/config/quality";
+import { ensureEarthMap } from "./earthMap";
 
 /**
- * The cinematic planet. Geometry is a single high-density icosphere; all
- * visual richness lives in the fragment shader (procedural continents, ocean
- * specular, day/night blending, fresnel rim, terminator glow, polar tint).
+ * The planet surface. Real coastlines come from the baked earth map; the
+ * fragment shader adds lighting (real subsolar point), glint, rim and the
+ * terminator. The mesh never rotates: geography is fixed in world space so
+ * event coordinates and continents always agree. The camera does the moving.
  */
 export function Globe() {
-  const meshRef = useRef<Mesh>(null!);
   const detail = profiles[useUIStore((s) => s.quality)].sphereDetail;
 
-  const material = useMemo(() => {
-    return new ShaderMaterial({
-      vertexShader: vert,
-      fragmentShader: frag,
-      uniforms: {
-        uTime: { value: 0 },
-        uSunYaw: { value: 0.6 },
-        uTension: { value: 0.2 },
-        uOceanDeep: { value: new Color(palette.oceanDeep) },
-        uOceanShallow: { value: new Color(palette.oceanShallow) },
-        uLandNight: { value: new Color(palette.landNight) },
-        uLandDay: { value: new Color("#1d2c4a") },
-        uRim: { value: new Color(palette.rim) },
-        uTerminatorWarm: { value: new Color("#ff8a3d") },
-      },
-    });
-  }, []);
+  useEffect(() => ensureEarthMap(), []);
 
-  useFrame(() => {
-    const { elapsed, sunYaw, tension } = useWorldStore.getState();
-    material.uniforms.uTime.value = elapsed;
-    material.uniforms.uSunYaw.value = sunYaw;
-    material.uniforms.uTension.value = tension;
-    if (meshRef.current) meshRef.current.rotation.y += 0.0005;
-  });
+  const material = useMemo(
+    () =>
+      new ShaderMaterial({
+        vertexShader: vert,
+        fragmentShader: frag,
+        uniforms: {
+          ...frameUniforms,
+          uOceanDeep: { value: new Color(palette.oceanDeep) },
+          uOceanShallow: { value: new Color(palette.oceanShallow) },
+          uLandNight: { value: new Color(palette.landNight) },
+          uLandDay: { value: new Color(palette.landDay) },
+          uIce: { value: new Color(palette.ice) },
+          uRim: { value: new Color(palette.rim) },
+          uTerminatorWarm: { value: new Color(palette.terminator) },
+        },
+      }),
+    [],
+  );
+  useEffect(() => () => material.dispose(), [material]);
 
   return (
-    <mesh ref={meshRef} material={material}>
-      <icosahedronGeometry args={[EARTH_RADIUS, detail]} />
+    <mesh material={material}>
+      <sphereGeometry args={[EARTH_RADIUS, detail * 2, detail]} />
     </mesh>
   );
 }

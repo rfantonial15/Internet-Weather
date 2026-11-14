@@ -9,21 +9,20 @@ import { HeatFieldRenderer } from "./HeatFieldRenderer";
 import { MemeSwarmRenderer } from "./MemeSwarmRenderer";
 import { EventAuroraRenderer } from "./EventAuroraRenderer";
 
+/** How often the HUD-facing tension value is pushed into React state. */
+const UI_PUBLISH_S = 0.2;
+
 /**
  * Mounts the WeatherSystem into the live scene:
  *   - subscribes to the event store via EventSpawner
- *   - ticks all simulation modules every frame
- *   - exposes the aggregate tension reading into the world store, so
- *     unrelated visual layers (atmosphere shader, neural currents) can
- *     all read from a single source of "how stressed is the planet"
+ *   - ticks every simulation module each frame
+ *   - publishes tension to the world store at 5 Hz for the HUD (shaders read
+ *     it every frame through the shared uniform instead)
  *   - mounts every renderer
- *
- * Keeping the tick + spawner here means the simulation is dormant until
- * this component mounts and ceases instantly on unmount — useful for
- * development hot-reload and for any future "pause" affordance.
  */
 export function WeatherSimulation() {
   const lastT = useRef(performance.now() / 1000);
+  const sincePublish = useRef(0);
 
   useEffect(() => startEventSpawner(), []);
 
@@ -32,7 +31,12 @@ export function WeatherSimulation() {
     const dt = Math.min(0.05, now - lastT.current); // clamp big dt (tab-switch)
     lastT.current = now;
     weather.update(dt, now);
-    useWorldStore.getState().setTension(weather.tension());
+
+    sincePublish.current += dt;
+    if (sincePublish.current >= UI_PUBLISH_S) {
+      sincePublish.current = 0;
+      useWorldStore.getState().setTension(weather.tension());
+    }
   });
 
   return (

@@ -1,4 +1,4 @@
-import type { NarrationTone } from "@iw/shared";
+import type { NarrationTone } from "../types.js";
 import type { Phenomenon, NarrationContext } from "./types.js";
 
 /**

@@ -80,8 +80,8 @@ export function HeatFieldRenderer() {
           float halo = pow(1.0 - r, 1.0) * 0.4;
 
           vec3 col = mix(uColorWarm, uColorHot, vHue);
-          float energy = (core + rim * 1.6 + halo) * vAlpha;
-          gl_FragColor = vec4(col * (1.4 + energy * 0.8), energy);
+          float energy = (core + rim * 1.2 + halo) * vAlpha * 0.7;
+          gl_FragColor = vec4(col * (0.9 + energy * 0.5), energy);
         }
       `,
     });

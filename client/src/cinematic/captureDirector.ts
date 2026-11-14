@@ -1,6 +1,5 @@
 import { useEventStore } from "@/state/useEventStore";
 import {
-  ASPECT_PRESETS,
   type AspectKey,
   type ClipRecord,
   useCinematicStore,
@@ -11,7 +10,7 @@ import {
   startCinematicShot,
 } from "@/state/useCameraStore";
 import { phaseForU, SHOT_SCHEDULE, shotForStory } from "./cameraChoreography";
-import { ClipRecorder } from "./clipRecorder";
+import { ClipRecorder, extensionFor } from "./clipRecorder";
 import { StoryDetector, type Story } from "./storyDetector";
 import { titleForStory } from "./titleGenerator";
 
@@ -171,6 +170,7 @@ export function initCaptureDirector(getSourceCanvas: () => HTMLCanvasElement | n
     endCinematicShot();
     try {
       const result = await a.recorder.stop();
+      if (result.blob.size === 0) throw new Error("empty recording");
       const url = URL.createObjectURL(result.blob);
       const clip: ClipRecord = {
         id: `clip_${a.story.id}`,
@@ -182,6 +182,7 @@ export function initCaptureDirector(getSourceCanvas: () => HTMLCanvasElement | n
         t: Date.now(),
         width: result.width,
         height: result.height,
+        mimeType: result.mimeType,
         size: result.blob.size,
       };
       useCinematicStore.getState().pushClip(clip);
@@ -261,7 +262,5 @@ export function clipFilename(clip: ClipRecord): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 48) || "internet-weather";
-  const aspect = ASPECT_PRESETS[clip.aspect];
-  const ext = clip.url && clip.url.startsWith("blob:") ? "webm" : "webm";
-  return `${slug}_${aspect.w}x${aspect.h}.${ext}`;
+  return `${slug}_${clip.width}x${clip.height}.${extensionFor(clip.mimeType)}`;
 }

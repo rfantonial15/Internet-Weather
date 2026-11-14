@@ -42,7 +42,11 @@ export function NarrationOverlay() {
   }, [current, renderedId, clear]);
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-[14%] z-20 flex justify-center">
+    <div
+      className="pointer-events-none absolute inset-x-0 top-[19%] z-20 flex justify-center sm:top-[14%]"
+      aria-live="polite"
+      aria-atomic="true"
+    >
       <AnimatePresence mode="wait">
         {current && (
           <motion.div
@@ -51,10 +55,10 @@ export function NarrationOverlay() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 4 }}
             transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-            className="flex w-[min(720px,90vw)] flex-col items-center text-center"
+            className="flex w-[min(720px,calc(100vw-2rem))] flex-col items-center text-center"
           >
             <Rule />
-            <p className="px-6 py-4 font-display text-[15px] font-light leading-relaxed tracking-wide text-paper sm:text-base md:text-[17px]">
+            <p className="px-2 py-3 font-display sm:px-6 sm:py-4 text-[15px] font-light leading-relaxed tracking-wide text-paper sm:text-base md:text-[17px]">
               {current.text}
             </p>
             <Rule reverse />

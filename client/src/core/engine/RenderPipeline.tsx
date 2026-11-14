@@ -1,5 +1,5 @@
 import { Canvas } from "@react-three/fiber";
-import { ACESFilmicToneMapping, SRGBColorSpace } from "three";
+import { NoToneMapping, SRGBColorSpace } from "three";
 import { ReactNode } from "react";
 import { profiles } from "@/config/quality";
 import { useUIStore } from "@/state/useUIStore";
@@ -9,28 +9,28 @@ import { CinematicCamera } from "@/core/camera/CinematicCamera";
 import { PerformanceProbe } from "./PerformanceMonitor";
 import { WorldClock } from "@/core/time/Clock";
 import { registerSourceCanvas } from "@/cinematic/sourceCanvas";
+import { CaptureFrameTap } from "@/cinematic/CaptureFrameTap";
 
 interface Props {
   children: ReactNode;
 }
 
 /**
- * The single Canvas mount point. Owns:
+ * The single Canvas mount point. Owns the WebGL context configuration and
+ * the per-tier DPR range.
  *
- *   - WebGL context configuration (color management, tone mapping, AA strategy)
- *   - Adaptive DPR clamped per quality tier (capped well below 2× to keep
- *     post-processing within fillrate budget on integrated GPUs)
- *   - Resize handling — R3F manages it natively, but we clamp the DPR ceiling
- *     against the live screen width so window resizes don't quietly push us
- *     past a comfortable pixel budget
+ * Quality changes update `dpr` in place; R3F reconfigures the renderer and
+ * systems rebuild only the geometry that depends on the tier. (An earlier
+ * version keyed the Canvas on the tier, which tore down the whole WebGL
+ * context, camera, clock and every GPU resource on each adaptive step.)
  *
- * Notes on the gl options:
- *   - antialias is OFF on the WebGL context; we rely on SMAA in PostFX. MSAA
- *     plus multi-pass bloom is wasteful — SMAA edges are visually equivalent
- *     and a fraction of the cost.
- *   - preserveDrawingBuffer stays OFF. Recording uses canvas.captureStream(),
- *     which samples the canvas natively without forcing the framebuffer to
- *     persist on the JS side.
+ * gl options:
+ *   - antialias off: SMAA in PostFX is cheaper than MSAA under multi-pass bloom
+ *   - preserveDrawingBuffer off: the clip recorder copies frames inside the
+ *     render loop (CaptureFrameTap) instead of forcing the buffer to persist
+ *   - no renderer tone mapping: the scene renders into the composer's buffer,
+ *     where three never applies it anyway. The palette is graded for a
+ *     straight linear-to-sRGB output, which the composer's final pass does
  */
 export function RenderPipeline({ children }: Props) {
   const quality = useUIStore((s) => s.quality);
@@ -38,9 +38,6 @@ export function RenderPipeline({ children }: Props) {
 
   return (
     <Canvas
-      // Key the Canvas on the quality tier so a downgrade re-creates the
-      // context with new DPR bounds — far cleaner than mutating it in place.
-      key={quality}
       dpr={profile.dpr}
       gl={{
         antialias: false,
@@ -48,20 +45,23 @@ export function RenderPipeline({ children }: Props) {
         alpha: false,
         stencil: false,
         depth: true,
-        // Off — frees a sizable cost on integrated GPUs. The clip recorder
-        // uses canvas.captureStream() instead of drawImage compositing.
         preserveDrawingBuffer: false,
       }}
       onCreated={({ gl }) => {
-        gl.toneMapping = ACESFilmicToneMapping;
-        // 1.0 is calibrated. Above ~1.05 the bloom-fed highlights crush
-        // mid-tones and the planet looks washed out.
-        gl.toneMappingExposure = 1.0;
+        gl.toneMapping = NoToneMapping;
         gl.outputColorSpace = SRGBColorSpace;
-        // Hard upper bound regardless of DPR setting. Some users on retina
-        // displays at 2.0× experience steep cost with diminishing returns.
-        gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, profile.dpr[1]));
         registerSourceCanvas(gl.domElement);
+        // three calls preventDefault on loss and rebuilds GPU state on
+        // restore; we only surface the state so the UI can explain it.
+        const ui = useUIStore.getState();
+        gl.domElement.addEventListener("webglcontextlost", () => {
+          console.warn("[render] WebGL context lost");
+          ui.setGlLost(true);
+        });
+        gl.domElement.addEventListener("webglcontextrestored", () => {
+          console.info("[render] WebGL context restored");
+          ui.setGlLost(false);
+        });
       }}
       camera={{
         fov: CAMERA.baseFov,
@@ -69,14 +69,15 @@ export function RenderPipeline({ children }: Props) {
         far: 200,
         position: [0, 0.3, CAMERA.initialDistance],
       }}
+      aria-label="Interactive globe. Drag to orbit, scroll or pinch to zoom, click a signal to inspect it."
+      role="img"
       style={{
-        // Lock the canvas to the viewport box. Any layout shift is the HUD's
-        // problem to handle — the renderer should never resize itself off-axis.
         position: "absolute",
         inset: 0,
         width: "100%",
         height: "100%",
         display: "block",
+        touchAction: "none",
       }}
     >
       <color attach="background" args={["#04060c"]} />
@@ -88,6 +89,7 @@ export function RenderPipeline({ children }: Props) {
       {children}
 
       <PostFX profile={profile} />
+      <CaptureFrameTap />
     </Canvas>
   );
 }

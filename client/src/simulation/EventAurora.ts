@@ -13,8 +13,8 @@ import { geoToVec3 } from "@/utils/geo";
  * counterweight to rage's violent puff of particles).
  */
 const PILLAR_LIFE_SEC = 7.5;
-const PILLAR_HEIGHT_MAX = 0.45;
-const PILLAR_BASE_RADIUS = 0.022;
+const PILLAR_HEIGHT_MAX = 0.22;
+const PILLAR_BASE_RADIUS = 0.007;
 
 export class EventAurora extends SimModule {
   readonly name = "auroraLocal";

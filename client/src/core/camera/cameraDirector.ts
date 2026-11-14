@@ -1,6 +1,15 @@
 import { Vector3, Spherical } from "three";
 import { CAMERA } from "@/config/constants";
-import { damp } from "@/utils/easing";
+import { clamp, damp } from "@/utils/easing";
+
+const TAU = Math.PI * 2;
+const PITCH_LIMIT = 1.25;
+const BASE_PITCH = 0.18;
+
+/** Wrap an angle to (-pi, pi]. */
+function wrapPi(a: number): number {
+  return a - TAU * Math.round(a / TAU);
+}
 
 /**
  * Pure camera math, decoupled from R3F. Holds critically-damped state for
@@ -8,6 +17,7 @@ import { damp } from "@/utils/easing";
  *
  * Modes:
  *   - idle:    slow auto-orbit
+ *   - free:    the user is steering (drag / wheel / pinch / keys); hold still
  *   - focus:   ease toward a target direction & distance, hold, revert
  *   - shot:    cinematic timeline driven by the capture director — keyframed
  *              dist/orbit/shake/fov, ignoring damping bands so we get film
@@ -36,40 +46,106 @@ export interface CinematicShot {
 
 export class CameraDirector {
   private yaw = 0;
-  private pitch = 0.18;
+  private pitch = BASE_PITCH;
   private dist: number = CAMERA.initialDistance;
+  /** 0..1 multiplier on camera shake; 0 for prefers-reduced-motion. */
+  motionScale = 1;
   /** Live FOV the renderer reads each frame; idle/focus modes hold the base. */
   fov: number = CAMERA.baseFov;
 
   private targetYaw = 0;
-  private targetPitch = 0.18;
+  private targetPitch = BASE_PITCH;
   private targetDist: number = CAMERA.initialDistance;
   private targetFov: number = CAMERA.baseFov;
 
-  /** Damping speed for idle/focus modes. */
+  /** Damping speed for idle/focus modes; raised while the user drags. */
   private lambda = 2.2;
+  /** Distance the user zoomed to; idle and free modes return here. */
+  private userDist: number = CAMERA.initialDistance;
+  /** Distance that frames the globe for the current viewport aspect. */
+  private fitDist: number = CAMERA.initialDistance;
+  private framed = false;
 
   /** Active cinematic shot, if any. */
   private shot: CinematicShot | null = null;
   private shotStartT = 0;
   private shotAnchorYaw = 0;
-  private shotAnchorPitch = 0.18;
+  private shotAnchorPitch = BASE_PITCH;
   /** Lazy seed for the per-shot shake noise — set when a shot starts. */
   private shakeSeed = 0;
 
-  setIdle(dt: number) {
-    this.targetYaw += CAMERA.idleSpin * dt;
-    this.targetPitch = 0.18 + Math.sin(this.targetYaw * 0.4) * 0.08;
-    this.targetDist = CAMERA.initialDistance;
+  /** Slow auto-orbit. `spin` lets reduced-motion users get a calmer drift. */
+  setIdle(dt: number, spin: number = CAMERA.idleSpin) {
+    this.targetYaw += spin * dt;
+    // Drift back toward a gentle oblique view with a slow nod.
+    const wantPitch = BASE_PITCH + Math.sin(this.targetYaw * 0.4) * 0.08;
+    this.targetPitch = damp(this.targetPitch, wantPitch, 0.6, dt);
+    this.targetDist = this.userDist;
     this.targetFov = CAMERA.baseFov;
   }
 
-  /** Pull yaw/pitch from a unit-sphere target vector. */
+  /** Free mode: keep whatever the user set. */
+  hold() {
+    this.targetDist = this.userDist;
+    this.targetFov = CAMERA.baseFov;
+  }
+
+  rotateBy(dYaw: number, dPitch: number) {
+    this.targetYaw += dYaw;
+    this.targetPitch = clamp(this.targetPitch + dPitch, -PITCH_LIMIT, PITCH_LIMIT);
+  }
+
+  zoomBy(factor: number) {
+    this.userDist = clamp(this.userDist * factor, CAMERA.minDistance, CAMERA.maxDistance);
+    this.targetDist = this.userDist;
+  }
+
+  resetZoom() {
+    this.userDist = this.fitDist;
+    this.targetDist = this.userDist;
+  }
+
+  /**
+   * Frame the globe for a viewport aspect (width / height): about 72% of the
+   * height on landscape screens, about 86% of the width on portrait phones.
+   * A user zoom is kept across resizes; the default distance follows.
+   */
+  setAspect(aspect: number) {
+    const halfV = (CAMERA.baseFov * Math.PI) / 360;
+    const halfH = Math.atan(Math.tan(halfV) * aspect);
+    const half = Math.min(halfV, halfH);
+    const fill = aspect < 1 ? 0.86 : 0.72;
+    const fit = clamp(1 / Math.sin(half * fill), CAMERA.minDistance, CAMERA.maxDistance);
+    const followDefault = !this.framed || Math.abs(this.userDist - this.fitDist) < 1e-3;
+    this.fitDist = fit;
+    if (followDefault) {
+      this.userDist = fit;
+      if (!this.shot) this.targetDist = fit;
+      if (!this.framed) this.dist = fit; // first frame: no fly-in from the fallback
+    }
+    this.framed = true;
+  }
+
+  /** Snappier damping while a pointer is down, floaty glide after release. */
+  setDragging(dragging: boolean) {
+    this.lambda = dragging ? 10 : 2.2;
+  }
+
+  /** Current camera distance from the globe centre. */
+  get distance(): number {
+    return this.dist;
+  }
+
+  /**
+   * Turn toward a unit-sphere target. The yaw target is chosen on the short
+   * way round from where the camera is now; using the raw azimuth would make
+   * the camera unwind every idle turn it has accumulated.
+   */
   setFocus(target: Vector3, distance: number) {
     const sph = new Spherical().setFromVector3(target);
-    this.targetYaw = sph.theta;
-    this.targetPitch = Math.PI / 2 - sph.phi;
-    this.targetDist = distance;
+    this.targetYaw = this.yaw + wrapPi(sph.theta - this.yaw);
+    this.targetPitch = clamp(Math.PI / 2 - sph.phi, -PITCH_LIMIT, PITCH_LIMIT);
+    this.targetDist = clamp(distance, CAMERA.minDistance, CAMERA.maxDistance);
     this.targetFov = CAMERA.baseFov;
   }
 
@@ -80,7 +156,7 @@ export class CameraDirector {
    */
   startShot(shot: CinematicShot) {
     const sph = new Spherical().setFromVector3(shot.anchor);
-    this.shotAnchorYaw = sph.theta;
+    this.shotAnchorYaw = this.yaw + wrapPi(sph.theta - this.yaw);
     this.shotAnchorPitch = Math.PI / 2 - sph.phi;
     this.shot = shot;
     this.shotStartT = performance.now();
@@ -96,7 +172,7 @@ export class CameraDirector {
     this.shot = null;
     this.targetYaw = this.yaw;
     this.targetPitch = this.pitch;
-    this.targetDist = CAMERA.initialDistance;
+    this.targetDist = this.userDist;
     this.targetFov = CAMERA.baseFov;
   }
 
@@ -123,7 +199,7 @@ export class CameraDirector {
       // Shake ramps up around the climax (centered ~0.65 of the shot) and
       // fades by the end so the closing frame is steady enough for a poster.
       const climax = 1 - Math.min(1, Math.abs(u - 0.65) / 0.35);
-      const amp = this.shot.shake * climax * 0.04;
+      const amp = this.shot.shake * climax * 0.04 * this.motionScale;
       const t = (performance.now() - this.shotStartT) * 0.03;
       const yawJ = Math.sin(t * 1.7 + this.shakeSeed) * amp;
       const pitchJ = Math.cos(t * 2.3 + this.shakeSeed * 0.7) * amp * 0.6;
@@ -132,6 +208,12 @@ export class CameraDirector {
 
       if (u >= 1) this.endShot();
     } else {
+      // Keep angles bounded over long sessions (idle spin only ever adds).
+      if (Math.abs(this.yaw) > TAU * 8) {
+        const k = TAU * Math.round(this.yaw / TAU);
+        this.yaw -= k;
+        this.targetYaw -= k;
+      }
       this.yaw = damp(this.yaw, this.targetYaw, this.lambda, dt);
       this.pitch = damp(this.pitch, this.targetPitch, this.lambda, dt);
       this.dist = damp(this.dist, this.targetDist, this.lambda, dt);

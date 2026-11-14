@@ -22,7 +22,7 @@ export function Reticle() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+      className="pointer-events-none absolute left-1/2 top-[var(--globe-y,45%)] -translate-x-1/2 -translate-y-1/2 scale-[0.72] sm:scale-100"
     >
       <motion.div
         className="relative"

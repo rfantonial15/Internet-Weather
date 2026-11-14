@@ -71,8 +71,8 @@ export function EventAuroraRenderer() {
           float vert = pow(1.0 - vY, 1.6);
           // Color cools at the tip — base warm-teal, tip cyan.
           vec3 col = mix(uColor, uColorTip, vY);
-          float a = vert * vSwell * (0.5 + vIntensity * 0.6);
-          gl_FragColor = vec4(col * (1.4 + vSwell), a);
+          float a = vert * vSwell * (0.35 + vIntensity * 0.45);
+          gl_FragColor = vec4(col * (0.9 + vSwell * 0.5), a);
         }
       `,
     });

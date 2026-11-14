@@ -1,4 +1,4 @@
-import type { Narration, WeatherEvent } from "@iw/shared";
+import type { Narration, WeatherEvent } from "../types.js";
 import { EventClassifier } from "./EventClassifier.js";
 import { selectTone } from "./ToneSelector.js";
 import type { Narrator } from "./Narrator.js";
@@ -49,7 +49,7 @@ export class NarrationEngine {
   private events: WeatherEvent[] = [];
   private narrator: Narrator;
 
-  private timer: NodeJS.Timeout | null = null;
+  private timer: ReturnType<typeof setInterval> | null = null;
   private inflight = false;
 
   private lastEmitAt = 0;

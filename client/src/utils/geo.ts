@@ -19,6 +19,15 @@ export function geoToVec3(p: GeoPoint, radius = 1, target?: Vector3): Vector3 {
   return latLonToVec3(p.lat, p.lon, radius, target);
 }
 
+/** Inverse of latLonToVec3: any non-zero vector to lat/lon degrees. */
+export function vec3ToGeo(v: Vector3): GeoPoint {
+  const len = v.length() || 1;
+  const lat = (Math.asin(Math.max(-1, Math.min(1, v.y / len))) * 180) / Math.PI;
+  let lon = (Math.atan2(v.z, -v.x) * 180) / Math.PI - 180;
+  if (lon < -180) lon += 360;
+  return { lat, lon };
+}
+
 /** Random point on a sphere of given radius (uniform distribution). */
 export function randomOnSphere(radius = 1, target = new Vector3()): Vector3 {
   const u = Math.random();

@@ -1,63 +1,91 @@
 import type { NarrationTone } from "@iw/shared";
-import type { Narrator } from "./Narrator.js";
-import type { Phenomenon, NarrationContext } from "./types.js";
+import type { Narrator } from "../../../shared/narration/Narrator.js";
+import type { Phenomenon, NarrationContext } from "../../../shared/narration/types.js";
 
 /**
- * Claude-API-backed narrator.
+ * Claude-API-backed narrator (optional).
  *
- * Optional implementation. Activated when ANTHROPIC_API_KEY is set in the
- * environment AND the @anthropic-ai/sdk package is installed. The dynamic
- * import keeps the dep optional — the server runs fine without either.
+ * Active when ANTHROPIC_API_KEY is set AND @anthropic-ai/sdk is installed.
+ * The dynamic import keeps the SDK an optional dependency: the server runs
+ * fine without it, falling back to the template narrator.
  *
- * Voice rules are enforced in the system prompt, not in post-processing,
- * because the model needs to know the *style constraints* up front. We also
- * pass tone explicitly so the model doesn't have to infer it from numbers.
+ * Voice rules live in the system prompt (the model needs the constraints up
+ * front); tone is passed explicitly so the model doesn't infer it from
+ * numbers. Recent sentences are sent as phrasings to avoid.
  *
- * Anti-repetition is delegated to the engine's recent-text buffer, which
- * we feed in as `forbid` strings — strong instructions, low temperature.
- *
- * Cost: one short message per narration tick (default every 8s).
+ * Model: Claude Haiku 5.5, one short sentence per narration tick (default
+ * every 8 s). Low effort with thinking off: this is a one-line caption, and
+ * Haiku 5.5 rejects non-default sampling parameters, so there is no
+ * `temperature` here.
  *
  * To enable:
- *   cd server && npm i @anthropic-ai/sdk
+ *   npm i -w server @anthropic-ai/sdk
  *   export ANTHROPIC_API_KEY=sk-...
  */
 
-const SYSTEM_PROMPT = `You are the narrator of "Internet Weather", a cinematic visualization that treats human civilization as a planet with weather. You speak like a hybrid of David Attenborough, a NOAA forecaster, and a quietly awed civilization observer.
+const SYSTEM_PROMPT = `You are the narrator of "Internet Weather", a cinematic visualization that treats human civilization as a planet with weather. You speak like a hybrid of a nature documentary narrator, a weather forecaster, and a quietly awed observer of civilization.
 
 Voice rules:
-- Output exactly one sentence. Under 18 words. No exclamation marks.
-- Never address the user. Never refer to yourself.
-- Present tense or recent past. No future speculation.
-- No corporate or platform names. No idioms that don't read aloud well.
-- Match the requested tone exactly.
+- Output exactly one sentence, under 18 words, with no exclamation marks.
+- Never address the viewer and never refer to yourself.
+- Present tense or recent past. No speculation about the future.
+- No company or platform names. Use phrasing that reads well aloud.
+- Match the requested tone.
 - If a region is given, mention it naturally. If not, do not invent one.
 
-You will receive structured JSON describing a current phenomenon and the desired tone. Return only the sentence — no quotes, no formatting.`;
+You receive JSON describing the current phenomenon and the desired tone. Reply with only the sentence: no quotes, no formatting.`;
+
+const DEFAULT_MODEL = "claude-haiku-5-5";
+
+interface TextBlock {
+  type: "text";
+  text: string;
+}
+
+interface ClaudeRequest {
+  model: string;
+  max_tokens: number;
+  system: string;
+  messages: Array<{ role: "user" | "assistant"; content: string }>;
+  thinking: { type: "disabled" };
+  output_config: { effort: "low" };
+}
+
+interface ClaudeResponse {
+  stop_reason: string | null;
+  content: Array<{ type: string; text?: string }>;
+}
+
+function isText(b: { type: string; text?: string }): b is TextBlock {
+  return b.type === "text" && typeof b.text === "string";
+}
 
 export class ClaudeNarrator implements Narrator {
   readonly name = "claude";
 
-  // Loaded lazily so the SDK stays an optional dep.
+  // Loaded lazily so the SDK stays an optional dependency.
   private clientPromise: Promise<{ create: (req: ClaudeRequest) => Promise<ClaudeResponse> } | null>;
 
   constructor(
     private readonly apiKey: string,
-    private readonly model = "claude-haiku-4-5-20251001",
-    private readonly maxTokens = 80,
+    private readonly model = process.env.IW_NARRATOR_MODEL || DEFAULT_MODEL,
+    private readonly maxTokens = 200,
   ) {
     this.clientPromise = this.loadClient();
+  }
+
+  /** True when the SDK loaded; the host falls back to templates otherwise. */
+  async ready(): Promise<boolean> {
+    return (await this.clientPromise) !== null;
   }
 
   async narrate(p: Phenomenon, tone: NarrationTone, ctx: NarrationContext): Promise<string> {
     const client = await this.clientPromise;
     if (!client) {
-      throw new Error(
-        "ClaudeNarrator: @anthropic-ai/sdk not installed. Run `npm i @anthropic-ai/sdk` in server/.",
-      );
+      throw new Error("ClaudeNarrator: @anthropic-ai/sdk is not installed (npm i -w server @anthropic-ai/sdk)");
     }
 
-    const userPayload = {
+    const payload = {
       tone,
       phenomenon: p.kind,
       intensity: round(p.intensity, 2),
@@ -71,21 +99,24 @@ export class ClaudeNarrator implements Narrator {
       model: this.model,
       max_tokens: this.maxTokens,
       system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: JSON.stringify(userPayload) }],
-      temperature: 0.7,
+      messages: [{ role: "user", content: JSON.stringify(payload) }],
+      thinking: { type: "disabled" },
+      output_config: { effort: "low" },
     });
 
-    const text = (resp.content?.[0]?.type === "text" ? resp.content[0].text : "") ?? "";
+    // A declined request is HTTP 200 with stop_reason "refusal": skip this tick.
+    if (resp.stop_reason === "refusal") throw new Error("narration declined");
+
+    const text = resp.content.find(isText)?.text ?? "";
     return text.trim().replace(/^"+|"+$/g, "");
   }
 
   private async loadClient() {
     try {
-      // Variable-expression dynamic import → TS types this as `any`
-      // regardless of whether the dep is installed. Keeps the SDK optional
-      // without a stale @ts-expect-error directive.
-      const path = "@anthropic-ai/sdk";
-      const mod = await import(path);
+      // A variable specifier keeps TypeScript from requiring the package at
+      // build time, so the SDK can stay optional.
+      const specifier = "@anthropic-ai/sdk";
+      const mod = await import(specifier);
       const Anthropic = mod.default ?? mod.Anthropic;
       const client = new Anthropic({ apiKey: this.apiKey });
       return {
@@ -95,18 +126,6 @@ export class ClaudeNarrator implements Narrator {
       return null;
     }
   }
-}
-
-interface ClaudeRequest {
-  model: string;
-  max_tokens: number;
-  system: string;
-  messages: Array<{ role: "user" | "assistant"; content: string }>;
-  temperature?: number;
-}
-
-interface ClaudeResponse {
-  content: Array<{ type: "text"; text: string } | { type: string }>;
 }
 
 function round(v: number, places: number): number {

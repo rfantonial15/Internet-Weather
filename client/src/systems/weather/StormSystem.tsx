@@ -1,5 +1,4 @@
-import { useMemo, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useEffect, useMemo } from "react";
 import {
   Points,
   BufferGeometry,
@@ -9,21 +8,20 @@ import {
   Color,
   Vector3,
 } from "three";
-import { useWorldStore } from "@/state/useWorldStore";
-import { useEventStore } from "@/state/useEventStore";
+import { frameUniforms } from "@/core/frameUniforms";
 import { useUIStore } from "@/state/useUIStore";
 import { profiles } from "@/config/quality";
 import { palette } from "@/config/colors";
 import { randomOnSphere } from "@/utils/geo";
-import { ATMOSPHERE_RADIUS } from "@/config/constants";
+import { EARTH_RADIUS } from "@/config/constants";
 
 /**
- * Drifting cloud-particle field above the planet. Tension (driven by rage /
- * controversy events) tints the field magenta and accelerates motion.
+ * Drifting particle field above the planet. Global tension (the shared
+ * uniform, fed by the weather simulation) tints it magenta and speeds it up.
  *
  * Particles live on a unit sphere; the GPU applies the tangential drift each
- * frame in the vertex shader, so we only upload the geometry once and update
- * two scalar uniforms (uTime, uTension) per frame.
+ * frame in the vertex shader, so the geometry uploads once and the only
+ * per-frame inputs are the shared uTime / uTension uniforms.
  *
  * Encoding:
  *   - position attribute: anchor point on the unit sphere (constant)
@@ -33,7 +31,6 @@ import { ATMOSPHERE_RADIUS } from "@/config/constants";
 export function StormSystem() {
   const tier = useUIStore((s) => s.quality);
   const count = profiles[tier].particleCount;
-  const tension = useRef(0);
 
   const { points, material } = useMemo(() => {
     const geo = new BufferGeometry();
@@ -41,6 +38,7 @@ export function StormSystem() {
     const drift = new Float32Array(count * 3);
 
     const tmp = new Vector3();
+    const t = new Vector3();
     for (let i = 0; i < count; i++) {
       randomOnSphere(1, tmp);
       positions[i * 3 + 0] = tmp.x;
@@ -48,8 +46,8 @@ export function StormSystem() {
       positions[i * 3 + 2] = tmp.z;
 
       // Tangent: a random vector projected onto the tangent plane at `tmp`.
-      const t = new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
-      t.sub(tmp.clone().multiplyScalar(t.dot(tmp))).normalize();
+      t.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
+      t.addScaledVector(tmp, -t.dot(tmp)).normalize();
       drift[i * 3 + 0] = t.x;
       drift[i * 3 + 1] = t.y;
       drift[i * 3 + 2] = t.z;
@@ -62,9 +60,10 @@ export function StormSystem() {
       depthWrite: false,
       blending: AdditiveBlending,
       uniforms: {
-        uTime: { value: 0 },
-        uTension: { value: 0 },
-        uRadius: { value: ATMOSPHERE_RADIUS * 1.015 },
+        uTime: frameUniforms.uTime,
+        uTension: frameUniforms.uTension,
+        uPointScale: frameUniforms.uPointScale,
+        uRadius: { value: EARTH_RADIUS * 1.03 },
         uCalm: { value: new Color(palette.atmosphere) },
         uStorm: { value: new Color(palette.rage) },
       },
@@ -73,6 +72,7 @@ export function StormSystem() {
         uniform float uTime;
         uniform float uTension;
         uniform float uRadius;
+        uniform float uPointScale;
         varying float vAlpha;
         void main() {
           // Tangential advection on the unit sphere, then re-projected.
@@ -83,8 +83,9 @@ export function StormSystem() {
           vec4 mv = modelViewMatrix * vec4(worldPos, 1.0);
           gl_Position = projectionMatrix * mv;
           float twinkle = 0.5 + 0.5 * sin(uTime * 1.3 + anchor.x * 12.0 + anchor.y * 7.0);
-          vAlpha = (0.20 + 0.45 * twinkle) * (0.55 + uTension * 0.9);
-          gl_PointSize = (1.4 + uTension * 2.2) * (260.0 / -mv.z);
+          vAlpha = (0.12 + 0.30 * twinkle) * (0.45 + uTension * 0.8);
+          // World-space size (~0.0035 units, larger under tension), capped.
+          gl_PointSize = min(24.0, (0.0035 + uTension * 0.004) * uPointScale / -mv.z);
         }
       `,
       fragmentShader: /* glsl */ `
@@ -106,21 +107,13 @@ export function StormSystem() {
     return { points: new Points(geo, mat), material: mat };
   }, [count]);
 
-  useFrame((_, dt) => {
-    const { elapsed } = useWorldStore.getState();
-    const { events, lastId } = useEventStore.getState();
-
-    if (lastId) {
-      const last = events[events.length - 1];
-      if (last?.kind === "rage" || last?.kind === "controversy") {
-        tension.current = Math.min(1, tension.current + last.intensity * 0.25);
-      }
-    }
-    tension.current = Math.max(0, tension.current - dt * 0.08);
-    material.uniforms.uTime.value = elapsed;
-    material.uniforms.uTension.value = tension.current;
-    useWorldStore.getState().setTension(tension.current);
-  });
+  useEffect(
+    () => () => {
+      points.geometry.dispose();
+      material.dispose();
+    },
+    [points, material],
+  );
 
   return <primitive object={points} />;
 }

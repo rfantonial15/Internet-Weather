@@ -1,66 +1,115 @@
 import { useFrame } from "@react-three/fiber";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useUIStore } from "@/state/useUIStore";
-import { lowerTier } from "@/config/quality";
+import { higherTier, lowerTier, TIER_ORDER } from "@/config/quality";
+import { activeRecorder } from "@/cinematic/clipRecorder";
 
 /**
- * FPS smoother + adaptive quality downgrade.
+ * FPS readout + adaptive quality.
  *
- *   - Reports a 0.5s rolling FPS into the UI store for the HUD readout.
- *   - Watches a longer window (~6s) of frame times. If we're consistently
- *     below the downgrade threshold, drop the tier — once. Subsequent calls
- *     are gated by a cooldown so we don't ladder all the way to "low" off
- *     a single hitch.
+ *   - Reports a 0.5 s rolling FPS into the UI store for the HUD.
+ *   - Averages a longer window (~6 s). Consistently below DOWNGRADE_FPS drops
+ *     a tier; a cooldown stops one hitch from laddering all the way down.
+ *   - Upgrades are allowed only up to one tier above the starting guess
+ *     (detectTier deliberately guesses low), only after two straight windows
+ *     at full frame rate, and never again once a downgrade has happened, so
+ *     a marginal device settles instead of thrashing.
  *
- * Upgrades are intentionally not automatic. A user-driven downgrade should
- * be sticky: thrashing back up if the user drops a heavy capture on a
- * marginal device produces worse perceived performance than a stable lower
- * tier.
+ * Frames longer than MAX_FRAME_S (tab hidden, debugger pause) are ignored:
+ * counting them made switching tabs look like a slow GPU and downgraded.
+ * A warmup after mount and after every tier change skips shader-compile and
+ * texture-upload hitches. A `?q=` URL override pins the tier for QA.
  */
 
 const REPORT_WINDOW_S = 0.5;
 const ADAPT_WINDOW_S = 6;
+const WARMUP_S = 3;
+const MAX_FRAME_S = 0.25;
 const DOWNGRADE_FPS = 42;
+const UPGRADE_FPS = 57;
 const COOLDOWN_S = 12;
 
 export function PerformanceProbe() {
   const setFps = useUIStore((s) => s.setFps);
+  const quality = useUIStore((s) => s.quality);
 
-  // Two windows: a short one for the HUD readout, a long one for adaptation.
   const report = useRef({ frames: 0, time: 0 });
-  const adapt = useRef({ frames: 0, time: 0, lastChangeAt: -COOLDOWN_S });
+  const adapt = useRef({ frames: 0, time: 0, warmup: WARMUP_S, lastChange: -COOLDOWN_S, goodWindows: 0 });
+  const startTier = useRef(quality);
+  const downgraded = useRef(false);
+  const clock = useRef(0);
+
+  // Every tier change re-arms the warmup and clears the windows.
+  useEffect(() => {
+    const a = adapt.current;
+    a.frames = 0;
+    a.time = 0;
+    a.goodWindows = 0;
+    a.warmup = WARMUP_S;
+  }, [quality]);
 
   useFrame((_, dt) => {
-    report.current.frames++;
-    report.current.time += dt;
-    adapt.current.frames++;
-    adapt.current.time += dt;
+    if (dt > MAX_FRAME_S) return;
+    clock.current += dt;
 
-    if (report.current.time >= REPORT_WINDOW_S) {
-      const fps = report.current.frames / report.current.time;
-      setFps(Math.round(fps));
-      report.current.frames = 0;
-      report.current.time = 0;
+    const r = report.current;
+    r.frames++;
+    r.time += dt;
+    if (r.time >= REPORT_WINDOW_S) {
+      setFps(Math.round(r.frames / r.time));
+      r.frames = 0;
+      r.time = 0;
     }
 
-    if (adapt.current.time >= ADAPT_WINDOW_S) {
-      const avg = adapt.current.frames / adapt.current.time;
+    const ui = useUIStore.getState();
+    if (ui.qualityPinned) return;
+    // A recording renders at a raised pixel ratio on purpose; don't judge the
+    // device by it, and start a fresh window afterwards.
+    if (activeRecorder()) {
       adapt.current.frames = 0;
       adapt.current.time = 0;
+      adapt.current.warmup = WARMUP_S;
+      return;
+    }
 
-      const now = performance.now() / 1000;
-      const sinceChange = now - adapt.current.lastChangeAt;
-      if (avg < DOWNGRADE_FPS && sinceChange > COOLDOWN_S) {
-        const ui = useUIStore.getState();
-        const next = lowerTier(ui.quality);
-        if (next !== ui.quality) {
-          ui.setQuality(next);
-          adapt.current.lastChangeAt = now;
-          // Console hint for power-users; not surfaced in the HUD to avoid
-          // making the user feel their machine is being judged.
-          console.info(`[render] adaptive quality: ${ui.quality} → ${next} (avg ${avg.toFixed(1)} fps)`);
-        }
+    const a = adapt.current;
+    if (a.warmup > 0) {
+      a.warmup -= dt;
+      return;
+    }
+    a.frames++;
+    a.time += dt;
+    if (a.time < ADAPT_WINDOW_S) return;
+
+    const avg = a.frames / a.time;
+    a.frames = 0;
+    a.time = 0;
+    if (clock.current - a.lastChange < COOLDOWN_S) return;
+
+    if (avg < DOWNGRADE_FPS) {
+      a.goodWindows = 0;
+      const next = lowerTier(ui.quality);
+      if (next !== ui.quality) {
+        downgraded.current = true;
+        a.lastChange = clock.current;
+        console.info(`[render] quality ${ui.quality} -> ${next} (avg ${avg.toFixed(1)} fps)`);
+        ui.setQuality(next);
       }
+      return;
+    }
+
+    if (avg >= UPGRADE_FPS && !downgraded.current) {
+      a.goodWindows++;
+      const ceiling = higherTier(startTier.current);
+      if (a.goodWindows >= 2 && TIER_ORDER.indexOf(ui.quality) < TIER_ORDER.indexOf(ceiling)) {
+        const next = higherTier(ui.quality);
+        a.lastChange = clock.current;
+        a.goodWindows = 0;
+        console.info(`[render] quality ${ui.quality} -> ${next} (avg ${avg.toFixed(1)} fps)`);
+        ui.setQuality(next);
+      }
+    } else {
+      a.goodWindows = 0;
     }
   });
 

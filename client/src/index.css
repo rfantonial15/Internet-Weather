@@ -45,6 +45,21 @@
   canvas {
     outline: none;
     touch-action: none;
+    cursor: grab;
+  }
+
+  canvas:active {
+    cursor: grabbing;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 
   /* Selection: muted paper, never the magenta. */
@@ -77,6 +92,12 @@
     color: var(--text-mute);
     line-height: 1.6;
     font-weight: 400;
+  }
+
+  /* Keyboard focus: a hairline accent outline, only for keyboard users. */
+  .focus-ring:focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: 2px;
   }
 
   .hud-label--strong { color: var(--text-strong); }

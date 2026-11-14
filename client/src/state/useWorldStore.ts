@@ -1,22 +1,17 @@
 import { create } from "zustand";
 
+/**
+ * World state that React UI cares about. Per-frame values (time, sun
+ * direction, shader tension) live in `core/frameUniforms` instead, so the
+ * render loop never churns React state.
+ */
 interface WorldState {
-  /** Seconds since boot. Driven by RenderPipeline; read-only for systems. */
-  elapsed: number;
-  /** Sun yaw (radians). Drives day/night terminator across the globe. */
-  sunYaw: number;
-  /** 0..1 global "tension" — derived from event mix, used by atmosphere shader. */
+  /** 0..1 global tension, published at ~5 Hz for HUD readouts. */
   tension: number;
-  setElapsed(t: number): void;
-  setSunYaw(y: number): void;
   setTension(t: number): void;
 }
 
 export const useWorldStore = create<WorldState>((set) => ({
-  elapsed: 0,
-  sunYaw: 0.6,
-  tension: 0.2,
-  setElapsed: (t) => set({ elapsed: t }),
-  setSunYaw: (y) => set({ sunYaw: y }),
+  tension: 0,
   setTension: (t) => set({ tension: t }),
 }));

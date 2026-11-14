@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import {
   InstancedMesh,
@@ -9,68 +9,27 @@ import {
   AdditiveBlending,
 } from "three";
 import { useEventStore } from "@/state/useEventStore";
-import { useWorldStore } from "@/state/useWorldStore";
 import { visualByKind } from "./eventTypes";
-import { geoToVec3 } from "@/utils/geo";
+import { eventAge, eventUnit } from "./eventGeo";
 import { EARTH_RADIUS, EVENTS } from "@/config/constants";
 import { EventBeam } from "./EventBeam";
 import { EventRipple } from "./EventRipple";
 
 /**
- * Pulls events from the store and presents them three ways simultaneously:
- *   - a glowing instanced sphere stuck to the surface (the "ping")
- *   - a vertical beam (for high-energy kinds)
- *   - an expanding shockwave ripple
+ * Every located event gets three presentations at once:
+ *   - a glowing instanced "ping" on the surface (this component)
+ *   - a vertical beam for high-energy kinds (EventBeam)
+ *   - an expanding shockwave ring (EventRipple)
  *
- * Instancing keeps the cost flat across the EVENTS.poolSize ring buffer.
- *
- * No React subscription to the events list — the renderer reads via
- * getState() inside useFrame, so the high-frequency event push doesn't
- * trigger a component re-render every time. The cinematic capture system
- * owns dramatic camera moves now; the markers stay still and let the user
- * decide where to look.
+ * All three are instanced over the EVENTS.poolSize ring buffer and read the
+ * store with getState() inside useFrame, so event traffic never triggers a
+ * React re-render.
  */
 export function EventMarkers() {
   const meshRef = useRef<InstancedMesh>(null!);
   const dummy = useMemo(() => new Object3D(), []);
   const tmpColor = useMemo(() => new Color(), []);
-
-  useFrame(() => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
-    const events = useEventStore.getState().events;
-    const now = useWorldStore.getState().elapsed * 1000 + performance.timeOrigin;
-
-    let i = 0;
-    for (const e of events) {
-      if (!e.at || i >= EVENTS.poolSize) continue;
-      const map = visualByKind[e.kind];
-      const life = EVENTS.baseLifespanMs * map.lifeMul * (0.6 + e.intensity);
-      const age = (now - e.t) / life;
-      if (age >= 1) continue;
-
-      const pos = geoToVec3(e.at, EARTH_RADIUS * 1.005);
-      dummy.position.copy(pos);
-      dummy.lookAt(0, 0, 0);
-      // Pulse: quick bloom in, slow fade out.
-      const breath = age < 0.1
-        ? age / 0.1
-        : 1 - (age - 0.1) / 0.9;
-      const s = map.size * (0.6 + e.intensity * 1.2) * (0.7 + breath * 0.5);
-      dummy.scale.setScalar(s);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
-
-      tmpColor.set(map.color).multiplyScalar(1.4 + e.intensity);
-      mesh.setColorAt(i, tmpColor);
-      i++;
-    }
-    mesh.count = i;
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  });
-
-  const geom = useMemo(() => new SphereGeometry(1, 12, 12), []);
+  const geom = useMemo(() => new SphereGeometry(1, 12, 10), []);
   const mat = useMemo(
     () =>
       new MeshBasicMaterial({
@@ -81,14 +40,48 @@ export function EventMarkers() {
       }),
     [],
   );
+  useEffect(
+    () => () => {
+      geom.dispose();
+      mat.dispose();
+    },
+    [geom, mat],
+  );
+
+  useFrame(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const events = useEventStore.getState().events;
+    const now = Date.now();
+
+    let i = 0;
+    for (const e of events) {
+      const unit = eventUnit(e);
+      if (!unit || i >= EVENTS.poolSize) continue;
+      const age = eventAge(e, now);
+      if (age < 0 || age >= 1) continue;
+      const map = visualByKind[e.kind];
+
+      dummy.position.copy(unit).multiplyScalar(EARTH_RADIUS * 1.005);
+      // Quick bloom in, slow fade out.
+      const breath = age < 0.1 ? age / 0.1 : 1 - (age - 0.1) / 0.9;
+      const s = map.size * (0.6 + e.intensity * 1.2) * (0.7 + breath * 0.5);
+      dummy.scale.setScalar(s);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+
+      tmpColor.set(map.color).multiplyScalar((1.2 + e.intensity) * (0.35 + 0.65 * breath));
+      mesh.setColorAt(i, tmpColor);
+      i++;
+    }
+    mesh.count = i;
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  });
 
   return (
     <group>
-      <instancedMesh
-        ref={meshRef}
-        args={[geom, mat, EVENTS.poolSize]}
-        frustumCulled={false}
-      />
+      <instancedMesh ref={meshRef} args={[geom, mat, EVENTS.poolSize]} frustumCulled={false} />
       <EventBeam />
       <EventRipple />
     </group>

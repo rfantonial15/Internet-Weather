@@ -69,3 +69,13 @@ float fbm(vec3 p) {
   }
   return v;
 }
+
+// Three-octave variant for layers where the fourth octave is invisible.
+float fbm3(vec3 p) {
+  float v = 0.5 * snoise(p);
+  p *= 2.02;
+  v += 0.25 * snoise(p);
+  p *= 2.02;
+  v += 0.125 * snoise(p);
+  return v;
+}

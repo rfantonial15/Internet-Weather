@@ -1,34 +1,42 @@
 import type { Narration, WeatherEvent } from "@iw/shared";
-import { NarrationEngine } from "./NarrationEngine.js";
-import { TemplateNarrator } from "./TemplateNarrator.js";
+import { NarrationEngine } from "../../../shared/narration/NarrationEngine.js";
+import { TemplateNarrator } from "../../../shared/narration/TemplateNarrator.js";
 import { ClaudeNarrator } from "./ClaudeNarrator.js";
 
 /**
- * Top-level wiring for the narration system.
+ * Server wiring for the narration system. The engine, classifier and
+ * template narrator live in shared/narration so the browser can run the
+ * same narrator when it has no server.
  *
- * Picks the narrator based on environment:
- *   - ANTHROPIC_API_KEY set → ClaudeNarrator (richer phrasing, costs API calls)
- *   - otherwise            → TemplateNarrator (offline default)
+ *   - ANTHROPIC_API_KEY set and @anthropic-ai/sdk installed: ClaudeNarrator
+ *   - otherwise: TemplateNarrator (offline default)
  *
- * Returns the engine + an `observe` shim that callers feed events into.
- * The host is responsible for setting `engine.tension` from whatever signal
- * it considers global stress (e.g., aggregated rage/controversy rate).
+ * If the key is set but the SDK is missing, the engine starts on templates
+ * and says so, instead of failing every tick.
  */
 export function createNarrationSystem(): {
   engine: NarrationEngine;
   observe: (e: WeatherEvent) => void;
   onNarration: (cb: (n: Narration) => void) => void;
+  stop: () => void;
 } {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  const narrator = apiKey ? new ClaudeNarrator(apiKey) : new TemplateNarrator();
-
-  const engine = new NarrationEngine(narrator);
+  const engine = new NarrationEngine(new TemplateNarrator());
   engine.start();
 
-  console.log(
-    `[narration] engine started with narrator: ${narrator.name}` +
-      (apiKey ? "" : " (set ANTHROPIC_API_KEY to use Claude)"),
-  );
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (apiKey) {
+    const claude = new ClaudeNarrator(apiKey);
+    void claude.ready().then((ok) => {
+      if (ok) {
+        engine.setNarrator(claude);
+        console.log("[narration] using Claude narrator");
+      } else {
+        console.warn("[narration] ANTHROPIC_API_KEY is set but @anthropic-ai/sdk is not installed; using templates");
+      }
+    });
+  } else {
+    console.log("[narration] using template narrator (set ANTHROPIC_API_KEY to use Claude)");
+  }
 
   return {
     engine,
@@ -36,10 +44,6 @@ export function createNarrationSystem(): {
     onNarration: (cb) => {
       engine.onNarration = cb;
     },
+    stop: () => engine.stop(),
   };
 }
-
-export { NarrationEngine } from "./NarrationEngine.js";
-export { TemplateNarrator } from "./TemplateNarrator.js";
-export { ClaudeNarrator } from "./ClaudeNarrator.js";
-export type { Phenomenon, NarrationContext } from "./types.js";

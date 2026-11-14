@@ -32,6 +32,17 @@ export class WeatherSystem {
   /** Smoothed tension 0..1 over the last tick. */
   private smoothedTension = 0;
 
+  /**
+   * Ambient energies for the global (non-instanced) layers. Every event
+   * passes through spawn() exactly once, so this is the one place they are
+   * bumped; update() decays them. Layers read these each frame.
+   *
+   *   buildPulse  city lights flare on deploys/merges
+   *   network     neural currents thicken on viral/meme/news activity
+   *   wholesome   polar aurora brightens on wholesome events
+   */
+  readonly ambient = { buildPulse: 0, network: 0, wholesome: 0 };
+
   constructor() {
     this.storms = new StormRenderer();
     this.lightning = new LightningArcs();
@@ -52,6 +63,29 @@ export class WeatherSystem {
 
   /** Route an event to all interested modules. Safe to call at any time. */
   spawn(e: WeatherEvent) {
+    const a = this.ambient;
+    const i = e.intensity;
+    switch (e.kind) {
+      case "build":
+        a.buildPulse = Math.min(2, a.buildPulse + i * 0.6);
+        break;
+      case "wholesome":
+        a.wholesome = Math.min(1.5, a.wholesome + i * 0.3);
+        break;
+      case "viral":
+      case "meme":
+        a.network = Math.min(1, a.network + i * 0.45);
+        break;
+      case "news":
+        a.network = Math.min(1, a.network + i * 0.6);
+        break;
+      case "trend":
+        a.network = Math.min(1, a.network + i * 0.25);
+        break;
+      default:
+        a.network = Math.min(1, a.network + i * 0.05);
+    }
+
     const list = this.routing.get(e.kind);
     if (!list) return;
     for (const m of list) m.spawn(e);
@@ -69,6 +103,11 @@ export class WeatherSystem {
       total += m.energy() * w;
       weight += w;
     }
+    const a = this.ambient;
+    a.buildPulse = Math.max(0, a.buildPulse - dt * 0.6);
+    a.network = Math.max(0, a.network - dt * 0.15);
+    a.wholesome = Math.max(0, a.wholesome - dt * 0.15);
+
     const target = total / weight;
     // Critically-damped smoothing so HUD readings glide rather than snap.
     this.smoothedTension = this.smoothedTension + (target - this.smoothedTension) * Math.min(1, dt * 3);
