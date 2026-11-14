@@ -88,6 +88,39 @@ describe("classifier", () => {
     const p = new EventClassifier().classify(es, Date.now());
     expect(p.find((x) => x.kind === "rage_storm")).toBeUndefined();
   });
+
+  it("names no region for activity spread around the world", () => {
+    const spots = [
+      { lat: 40.7, lon: -74 }, { lat: 35.7, lon: 139.7 }, { lat: -23.5, lon: -46.6 },
+      { lat: 51.5, lon: -0.1 }, { lat: 19.1, lon: 72.9 }, { lat: -33.9, lon: 151.2 },
+    ];
+    const es = spots.map((at) => ev("viral", at, 0.6));
+    const surge = new EventClassifier().classify(es, Date.now()).find((x) => x.kind === "viral_surge");
+    expect(surge).toBeDefined();
+    expect(surge!.region).toBeUndefined();
+  });
+
+  it("names the region that holds most of the activity", () => {
+    const es = [
+      ...Array.from({ length: 5 }, () => ev("meme", { lat: 35.7, lon: 139.7 })),
+      ev("meme", { lat: 40.7, lon: -74 }),
+      ev("meme", { lat: 51.5, lon: -0.1 }),
+    ];
+    const m = new EventClassifier().classify(es, Date.now()).find((x) => x.kind === "meme_migration");
+    expect(m!.region).toBe("East Asia");
+    expect(m!.centroid!.lon).toBeCloseTo(139.7, 1);
+  });
+
+  it("reports no percentage until the baseline has warmed up", () => {
+    const c = new EventClassifier();
+    const deltas: Array<number | null> = [];
+    for (let i = 0; i < 14; i++) {
+      const es = Array.from({ length: 4 + (i % 3) }, () => ev("rage"));
+      deltas.push(c.classify(es, Date.now()).find((x) => x.kind === "rage_storm")!.deltaPct);
+    }
+    expect(deltas.slice(0, 11).every((d) => d === null)).toBe(true);
+    expect(deltas.slice(12).every((d) => typeof d === "number")).toBe(true);
+  });
 });
 
 describe("regions", () => {

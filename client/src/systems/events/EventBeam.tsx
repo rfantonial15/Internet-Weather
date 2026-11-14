@@ -13,6 +13,7 @@ import { visualByKind } from "./eventTypes";
 import { eventAge, eventUnit } from "./eventGeo";
 import { EARTH_RADIUS, EVENTS } from "@/config/constants";
 import { useEventStore } from "@/state/useEventStore";
+import { frameUniforms } from "@/core/frameUniforms";
 
 const UP = new Vector3(0, 1, 0);
 
@@ -49,6 +50,7 @@ export function EventBeam() {
     if (!mesh) return;
     const events = useEventStore.getState().events;
     const now = Date.now();
+    const zoom = frameUniforms.uMarkerScale.value;
 
     let i = 0;
     for (const e of events) {
@@ -60,8 +62,8 @@ export function EventBeam() {
       if (age < 0 || age >= 1) continue;
 
       const fade = 1 - age;
-      const height = (0.1 + e.intensity * 0.28) * (0.6 + fade * 0.4);
-      const radius = 0.0025 * (0.5 + e.intensity);
+      const height = (0.1 + e.intensity * 0.28) * (0.6 + fade * 0.4) * zoom;
+      const radius = 0.0025 * (0.5 + e.intensity) * zoom;
       dummy.position.copy(unit).multiplyScalar(EARTH_RADIUS + height * 0.5);
       dummy.quaternion.setFromUnitVectors(UP, unit);
       dummy.scale.set(radius, height, radius);

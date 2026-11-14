@@ -41,7 +41,16 @@ describe("CameraDirector", () => {
     expect(d.distance).toBeCloseTo(CAMERA.maxDistance, 1);
     d.zoomBy(0.0001);
     settle(d, 8);
-    expect(d.distance).toBeCloseTo(CAMERA.minDistance, 1);
+    expect(d.distance).toBeCloseTo(d.minDistance, 1);
+    expect(d.minDistance).toBeGreaterThanOrEqual(CAMERA.minDistance);
+  });
+
+  it("stops a tall phone further out than a desktop at full zoom", () => {
+    const desk = new CameraDirector();
+    desk.setAspect(16 / 9);
+    const phone = new CameraDirector();
+    phone.setAspect(390 / 844);
+    expect(phone.minDistance).toBeGreaterThan(desk.minDistance * 1.4);
   });
 
   it("turns to face a focus target the short way, even after many idle turns", () => {

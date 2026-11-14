@@ -5,6 +5,10 @@ import { regionForGeo, centroid } from "./regions.js";
 const WINDOW_MS = 60_000;
 /** Slow EWMA so baselines don't track momentary spikes — they're the "normal". */
 const BASELINE_ALPHA = 0.05;
+/** Classifier passes before a baseline is trusted (about 1.5 min at 8 s ticks). */
+const BASELINE_WARMUP = 12;
+/** Share of located events one region needs before a phenomenon is "over" it. */
+const REGION_DOMINANCE = 0.4;
 
 /**
  * Per-kind exponentially-weighted moving average of events-per-second.
@@ -13,13 +17,22 @@ const BASELINE_ALPHA = 0.05;
  */
 class RateBaseline {
   private rates: Map<EventKind, number> = new Map();
+  private seen: Map<EventKind, number> = new Map();
 
   observe(kind: EventKind, ratePerSec: number) {
     const prev = this.rates.get(kind) ?? ratePerSec;
     this.rates.set(kind, prev + (ratePerSec - prev) * BASELINE_ALPHA);
+    this.seen.set(kind, (this.seen.get(kind) ?? 0) + 1);
   }
 
+  /**
+   * The baseline rate, or 0 while it is still warming up. A young EWMA
+   * starts from whatever the first (often near-empty) window held, so for
+   * the first minutes every rate looked like "+1349%". Until it has seen
+   * enough windows there is no honest "normal" to compare against.
+   */
   get(kind: EventKind): number {
+    if ((this.seen.get(kind) ?? 0) < BASELINE_WARMUP) return 0;
     return this.rates.get(kind) ?? 0;
   }
 }
@@ -236,12 +249,34 @@ function ids(es: WeatherEvent[]): string[] {
   return es.map((e) => e.id);
 }
 
+/**
+ * Where a phenomenon is happening: the region holding most of its events.
+ * Averaging every event's coordinates instead put worldwide activity in
+ * "North Africa" (the mean of scattered points). When no region holds a
+ * clear share, the phenomenon has no region and the narrator uses a
+ * line that doesn't name one.
+ */
 function locate(es: WeatherEvent[]): Pick<Phenomenon, "centroid" | "region"> {
   const located = es.filter((e): e is WeatherEvent & { at: NonNullable<WeatherEvent["at"]> } => !!e.at);
   if (located.length === 0) return {};
-  const c = centroid(located.map((e) => e.at));
-  if (!c) return {};
-  return { centroid: c, region: regionForGeo(c.lat, c.lon) };
+  const byRegion = new Map<string, Array<{ lat: number; lon: number }>>();
+  for (const e of located) {
+    const r = regionForGeo(e.at.lat, e.at.lon);
+    const arr = byRegion.get(r);
+    if (arr) arr.push(e.at);
+    else byRegion.set(r, [e.at]);
+  }
+  let region = "";
+  let points: Array<{ lat: number; lon: number }> = [];
+  for (const [r, pts] of byRegion) {
+    if (pts.length > points.length) {
+      region = r;
+      points = pts;
+    }
+  }
+  if (located.length > 1 && points.length / located.length < REGION_DOMINANCE) return {};
+  const c = centroid(points);
+  return c ? { centroid: c, region } : {};
 }
 
 function clamp(v: number, mn: number, mx: number): number {

@@ -15,6 +15,7 @@ import {
 } from "three";
 import { weather } from "@/simulation/WeatherSystem";
 import { palette } from "@/config/colors";
+import { frameUniforms } from "@/core/frameUniforms";
 
 /**
  * GPU consumer for `weather.heat`. Each zone is an instanced disc oriented
@@ -102,6 +103,7 @@ export function HeatFieldRenderer() {
     if (!mesh) return;
     const t = performance.now() / 1000;
     const arr = instData.array as Float32Array;
+    const zoom = frameUniforms.uMarkerScale.value;
 
     let i = 0;
     for (let s = 0; s < m.capacity; s++) {
@@ -119,7 +121,7 @@ export function HeatFieldRenderer() {
       const di = i * 3;
       arr[di + 0] = m.alpha(s, t);
       arr[di + 1] = m.hue[s];
-      arr[di + 2] = m.radius(s, t);
+      arr[di + 2] = m.radius(s, t) * zoom;
       i++;
     }
     mesh.count = i;

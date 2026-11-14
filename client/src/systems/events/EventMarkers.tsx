@@ -14,6 +14,7 @@ import { eventAge, eventUnit } from "./eventGeo";
 import { EARTH_RADIUS, EVENTS } from "@/config/constants";
 import { EventBeam } from "./EventBeam";
 import { EventRipple } from "./EventRipple";
+import { frameUniforms } from "@/core/frameUniforms";
 
 /**
  * Every located event gets three presentations at once:
@@ -53,6 +54,7 @@ export function EventMarkers() {
     if (!mesh) return;
     const events = useEventStore.getState().events;
     const now = Date.now();
+    const zoom = frameUniforms.uMarkerScale.value;
 
     let i = 0;
     for (const e of events) {
@@ -65,7 +67,7 @@ export function EventMarkers() {
       dummy.position.copy(unit).multiplyScalar(EARTH_RADIUS * 1.005);
       // Quick bloom in, slow fade out.
       const breath = age < 0.1 ? age / 0.1 : 1 - (age - 0.1) / 0.9;
-      const s = map.size * (0.6 + e.intensity * 1.2) * (0.7 + breath * 0.5);
+      const s = map.size * (0.6 + e.intensity * 1.2) * (0.7 + breath * 0.5) * zoom;
       dummy.scale.setScalar(s);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);

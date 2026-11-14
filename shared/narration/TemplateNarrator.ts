@@ -44,7 +44,8 @@ export class TemplateNarrator implements Narrator {
     // Every {pct} template reads as an increase ("40% above baseline"), so a
     // flat or falling rate must not fill one: the old Math.abs turned a 40%
     // drop into "40% above baseline".
-    if (template.includes("{pct}") && (p.deltaPct === null || p.deltaPct < 10)) return false;
+    // Very large jumps read as noise ("1349%"), so they get a line without one.
+    if (template.includes("{pct}") && (p.deltaPct === null || p.deltaPct < 10 || p.deltaPct > 400)) return false;
     if (template.includes("{region}") && !p.region) return false;
     return true;
   }

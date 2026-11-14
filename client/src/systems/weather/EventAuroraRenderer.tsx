@@ -14,6 +14,7 @@ import {
 } from "three";
 import { weather } from "@/simulation/WeatherSystem";
 import { palette } from "@/config/colors";
+import { frameUniforms } from "@/core/frameUniforms";
 
 /**
  * GPU consumer for `weather.auroraLocal`. Each pillar is a thin cylinder
@@ -93,6 +94,7 @@ export function EventAuroraRenderer() {
     if (!mesh) return;
     const t = performance.now() / 1000;
     const arr = instData.array as Float32Array;
+    const zoom = frameUniforms.uMarkerScale.value;
 
     let i = 0;
     for (let s = 0; s < m.capacity; s++) {
@@ -101,8 +103,8 @@ export function EventAuroraRenderer() {
       const o = s * 3;
       dir.set(m.normals[o + 0], m.normals[o + 1], m.normals[o + 2]);
 
-      const height = m.heightMax * (0.4 + swell * 0.9);
-      const radius = m.baseRadius * (0.7 + m.intensities[s] * 0.7);
+      const height = m.heightMax * (0.4 + swell * 0.9) * zoom;
+      const radius = m.baseRadius * (0.7 + m.intensities[s] * 0.7) * zoom;
 
       // Center the cylinder halfway along its length, anchored to the
       // surface and pointing outward.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Vector3 } from "three";
 import { latLonToVec3, vec3ToGeo } from "@/utils/geo";
-import { subsolarPoint } from "@/core/frameUniforms";
+import { markerScaleFor, subsolarPoint } from "@/core/frameUniforms";
 import { nearestCity, placeLabel } from "@/utils/places";
 
 describe("lat/lon <-> vector", () => {
@@ -82,5 +82,14 @@ describe("places", () => {
     // Just east of the date line, closest to a Pacific city on the other side.
     const c = nearestCity({ lat: 21.3, lon: -157.9 });
     expect(c.name).toBe("Honolulu");
+  });
+});
+
+describe("marker scale", () => {
+  it("is full size at the default distance and shrinks, with a floor, when zoomed in", () => {
+    expect(markerScaleFor(4.6)).toBe(1);
+    expect(markerScaleFor(11)).toBe(1);
+    expect(markerScaleFor(2.6)).toBeCloseTo(1.6 / 3, 5);
+    expect(markerScaleFor(1.6)).toBe(0.35);
   });
 });
